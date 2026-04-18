@@ -39,7 +39,11 @@
   },
   "version": "1.2.6",
   "identifier": "com.github.yusufozmen01.kikitan",
-  "plugins": {},
+  "plugins": {
+    "updater": {
+      "active": false
+    }
+  },
   "app": {
     "windows": [
       {

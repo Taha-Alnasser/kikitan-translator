@@ -61,6 +61,19 @@
         "minWidth": 900,
         "title": "Kikitan Translator",
         "width": 900
+      },
+      {
+        "label": "screen-overlay",
+        "title": "",
+        "url": "overlay.html",
+        "width": 600,
+        "height": 300,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "resizable": false
       }
     ]
   }

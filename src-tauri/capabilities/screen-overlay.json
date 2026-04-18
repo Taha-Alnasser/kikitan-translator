@@ -1,0 +1,17 @@
+{
+    "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+    "identifier": "screen-overlay",
+    "description": "Permissions for the screen overlay window",
+    "local": true,
+    "windows": ["screen-overlay"],
+    "permissions": [
+        "core:default",
+        "core:window:allow-set-position",
+        "core:window:allow-set-size",
+        "core:window:allow-set-always-on-top",
+        "core:window:allow-set-ignore-cursor-events",
+        "core:window:allow-show",
+        "core:window:allow-hide",
+        "core:event:default"
+    ]
+}

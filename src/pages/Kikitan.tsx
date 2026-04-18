@@ -31,7 +31,7 @@ import {
 } from "@mui/icons-material";
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-shell";
 
 import {
@@ -315,6 +315,14 @@ export default function Kikitan({
 
             const current_detection = current[0];
             const current_translation = current[1];
+
+            // Send to screen overlay if enabled
+            if (config.screen_overlay?.enabled) {
+                emit("screen-overlay:line", {
+                    transcription: current_detection,
+                    translation: config.mode === 0 ? current_translation : "",
+                });
+            }
 
             if (config.mode == 0) setTranslated(current_translation);
 

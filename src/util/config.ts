@@ -17,6 +17,16 @@ export type MessageHistoryItem = {
     timestamp: number;
 }
 
+export type ScreenOverlayConfig = {
+    enabled: boolean;
+    font_size: number;
+    fade_timeout: number;
+    max_lines: number;
+    text_color: string;
+    transcription_color: string;
+    corner: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+}
+
 export type Config = {
     source_language: string,
     target_language: string,
@@ -52,7 +62,8 @@ export type Config = {
         api_key: string,
         used_tokens: number,
         last_used_day: number
-    }
+    },
+    screen_overlay: ScreenOverlayConfig
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -90,6 +101,15 @@ export const DEFAULT_CONFIG: Config = {
         api_key: "",
         used_tokens: 0,
         last_used_day: 0
+    },
+    screen_overlay: {
+        enabled: false,
+        font_size: 18,
+        fade_timeout: 5,
+        max_lines: 3,
+        text_color: "#ffffff",
+        transcription_color: "#60a5fa",
+        corner: "bottom-right"
     }
 }
 

@@ -23,6 +23,8 @@ import {
 
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-shell'
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { emit, listen } from "@tauri-apps/api/event";
 
 import SettingsPage from './pages/Settings';
 
@@ -115,6 +117,34 @@ function App() {
       })
     }
   }, [quickstartVisible])
+
+  // Show/hide overlay window when enabled setting changes
+  React.useEffect(() => {
+    const overlayWin = WebviewWindow.getByLabel("screen-overlay");
+    if (!overlayWin) return;
+
+    if (config.screen_overlay?.enabled) {
+        overlayWin.show();
+    } else {
+        overlayWin.hide();
+    }
+  }, [config.screen_overlay?.enabled]);
+
+  // Respond to config-request from overlay window and push config on any change
+  React.useEffect(() => {
+    const sendConfig = () => {
+        if (!config.screen_overlay) return;
+        emit("screen-overlay:config", config.screen_overlay);
+    };
+
+    sendConfig();
+
+    const unlisten = listen("screen-overlay:config-request", () => {
+        sendConfig();
+    });
+
+    return () => { unlisten.then((fn) => fn()); };
+  }, [config.screen_overlay]);
 
   return (
     <>

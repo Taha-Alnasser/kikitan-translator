@@ -35,7 +35,7 @@
         "depends": []
       }
     },
-    "createUpdaterArtifacts": "v1Compatible"
+    "createUpdaterArtifacts": false
   },
   "version": "1.2.6",
   "identifier": "com.github.yusufozmen01.kikitan",

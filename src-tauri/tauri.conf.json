@@ -39,11 +39,7 @@
   },
   "version": "1.2.6",
   "identifier": "com.github.yusufozmen01.kikitan",
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMwNjgzRTA3MzU3OThEMUMKUldRY2pYazFCejVvd1B2Y0k5YUtOTENTQzZUZlZ3Mk4rcXUxY2dUUGkrMmZLUHlUclYzUk5idngK"
-    }
-  },
+  "plugins": {},
   "app": {
     "windows": [
       {

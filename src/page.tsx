@@ -120,14 +120,14 @@ function App() {
 
   // Show/hide overlay window when enabled setting changes
   React.useEffect(() => {
-    const overlayWin = WebviewWindow.getByLabel("screen-overlay");
-    if (!overlayWin) return;
-
-    if (config.screen_overlay?.enabled) {
+    WebviewWindow.getByLabel("screen-overlay").then((overlayWin) => {
+      if (!overlayWin) return;
+      if (config.screen_overlay?.enabled) {
         overlayWin.show();
-    } else {
+      } else {
         overlayWin.hide();
-    }
+      }
+    });
   }, [config.screen_overlay?.enabled]);
 
   // Respond to config-request from overlay window and push config on any change

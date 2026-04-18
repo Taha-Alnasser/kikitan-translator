@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
-import { getCurrentWindow, PhysicalPosition, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import { primaryMonitor } from "@tauri-apps/api/window";
 
 type OverlayLine = {

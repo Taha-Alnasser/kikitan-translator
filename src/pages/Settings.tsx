@@ -14,7 +14,7 @@ import {
     History,
     Delete
 } from '@mui/icons-material';
-import { Config, DEFAULT_CONFIG, speed_presets } from "../util/config";
+import { Config, DEFAULT_CONFIG, speed_presets, ScreenOverlayConfig } from "../util/config";
 
 import { localization } from "../util/localization";
 import { DAILY_TOKEN_LIMIT, Lang } from "../util/constants";
@@ -104,6 +104,7 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                         <Tab label={localization.message_history[lang]} {...a11yProps(1)} />
                         <Tab label={localization.translator_settings[lang]} {...a11yProps(2)} />
                         <Tab label={localization.advanced_settings[lang]} {...a11yProps(3)} />
+                        <Tab label="Screen Overlay" {...a11yProps(4)} />
                     </Tabs>
                 </Box>
                 <CustomTabPanel className="flex" value={page} index={0}>
@@ -457,6 +458,111 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                             </IconButton>
                         </div>
                     </FormGroup>
+                </CustomTabPanel>
+                <CustomTabPanel className="flex" value={page} index={4}>
+                    <div className={`flex flex-col gap-4 ${config.light_mode ? "text-black" : "text-slate-200"}`}>
+                        <p className="text-lg font-semibold">Screen Overlay</p>
+
+                        <FormGroup>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={config.screen_overlay.enabled}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            screen_overlay: { ...config.screen_overlay, enabled: e.target.checked }
+                                        })}
+                                    />
+                                }
+                                label="Enable Screen Overlay"
+                            />
+                        </FormGroup>
+
+                        <div>
+                            <p className="mb-1 text-sm">Corner Position</p>
+                            <Select
+                                size="small"
+                                value={config.screen_overlay.corner}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, corner: e.target.value as ScreenOverlayConfig["corner"] }
+                                })}
+                                sx={{ color: config.light_mode ? 'black' : 'white', '& .MuiSvgIcon-root': { color: config.light_mode ? 'black' : 'white' } }}
+                            >
+                                <MenuItem value="bottom-right">Bottom Right</MenuItem>
+                                <MenuItem value="bottom-left">Bottom Left</MenuItem>
+                                <MenuItem value="top-right">Top Right</MenuItem>
+                                <MenuItem value="top-left">Top Left</MenuItem>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Font Size: {config.screen_overlay.font_size}px</p>
+                            <Slider
+                                min={12} max={36} step={1}
+                                value={config.screen_overlay.font_size}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, font_size: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Fade Timeout: {config.screen_overlay.fade_timeout}s</p>
+                            <Slider
+                                min={2} max={20} step={1}
+                                value={config.screen_overlay.fade_timeout}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, fade_timeout: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Max Lines: {config.screen_overlay.max_lines}</p>
+                            <Slider
+                                min={1} max={8} step={1}
+                                value={config.screen_overlay.max_lines}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, max_lines: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Translation Text Color</p>
+                            <TextField
+                                size="small"
+                                value={config.screen_overlay.text_color}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, text_color: e.target.value }
+                                })}
+                                placeholder="#ffffff"
+                                sx={{ input: { color: config.light_mode ? 'black' : 'white' }, width: 140 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Transcription Text Color</p>
+                            <TextField
+                                size="small"
+                                value={config.screen_overlay.transcription_color}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, transcription_color: e.target.value }
+                                })}
+                                placeholder="#60a5fa"
+                                sx={{ input: { color: config.light_mode ? 'black' : 'white' }, width: 140 }}
+                            />
+                        </div>
+                    </div>
                 </CustomTabPanel>
             </div>
         </Box>

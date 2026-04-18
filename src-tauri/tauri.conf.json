@@ -15,9 +15,7 @@
     "icon": [
       "icons/kikitan_logo.ico"
     ],
-    "resources": [
-      "./desktopoverlay"
-    ],
+    "resources": [],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",

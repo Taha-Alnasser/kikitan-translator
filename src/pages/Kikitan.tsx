@@ -864,6 +864,53 @@ export default function Kikitan({
                     </div>
                 </div>
             </div>
+            {/* Overlay controls */}
+            <div className="mt-4 flex gap-4">
+                {([
+                    { label: "Overlay 1", key: "screen_overlay" as const },
+                    { label: "Overlay 2", key: "screen_overlay_2" as const },
+                ] as const).map(({ label, key }) => {
+                    const ov = config[key];
+                    const selSx = {
+                        color: config.light_mode ? "black" : "white",
+                        "& .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "black" : "#94A3B8" },
+                        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "black" : "#94A3B8" },
+                        "& .MuiSvgIcon-root": { color: config.light_mode ? "black" : "#94A3B8" },
+                    };
+                    const menuSx = { sx: { "& .MuiPaper-root": { backgroundColor: config.light_mode ? "#94A3B8" : "#020617" } } };
+                    return (
+                        <div key={key} className={`flex flex-col gap-2 p-3 rounded-md outline outline-1 ${config.light_mode ? "outline-slate-400 text-black" : "outline-slate-600 text-slate-200"}`}>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={ov.enabled}
+                                    onChange={(e) => setConfig({ ...config, [key]: { ...ov, enabled: e.target.checked } })}
+                                    className="w-4 h-4 cursor-pointer"
+                                />
+                                <span className="font-semibold text-sm">{label}</span>
+                                <Select size="small" value={ov.corner} onChange={(e) => setConfig({ ...config, [key]: { ...ov, corner: e.target.value as typeof ov.corner } })} sx={{ ...selSx, fontSize: 12 }} MenuProps={menuSx}>
+                                    <MenuItem value="top-left" sx={{ color: config.light_mode ? "black" : "white" }}>↖ Top Left</MenuItem>
+                                    <MenuItem value="top-right" sx={{ color: config.light_mode ? "black" : "white" }}>↗ Top Right</MenuItem>
+                                    <MenuItem value="bottom-left" sx={{ color: config.light_mode ? "black" : "white" }}>↙ Bot Left</MenuItem>
+                                    <MenuItem value="bottom-right" sx={{ color: config.light_mode ? "black" : "white" }}>↘ Bot Right</MenuItem>
+                                </Select>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Select size="small" value={ov.source_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, source_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
+                                    {langSource.map((l) => <MenuItem key={l.code} value={l.code} sx={{ color: config.light_mode ? "black" : "white" }}>{l.name[lang]}</MenuItem>)}
+                                </Select>
+                                <Button size="small" onClick={() => setConfig({ ...config, [key]: { ...ov, source_language: ov.target_language, target_language: ov.source_language } })}>
+                                    <SwapHorizIcon fontSize="small" />
+                                </Button>
+                                <Select size="small" value={ov.target_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, target_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
+                                    {langTo.map((l) => <MenuItem key={l.code} value={l.code} sx={{ color: config.light_mode ? "black" : "white" }}>{l.name[lang]}</MenuItem>)}
+                                </Select>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
             <div id="buttons" className="mt-2 mb-2 flex gap-2">
                 <Button
                     variant="outlined"

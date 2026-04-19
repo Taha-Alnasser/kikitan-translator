@@ -60,14 +60,17 @@ export default function Overlay() {
     const [lines, setLines] = useState<OverlayLine[]>([]);
     const [visible, setVisible] = useState(false);
     const [config, setConfig] = useState<OverlayConfig>(DEFAULT_CONFIG);
+    const [label, setLabel] = useState("screen-overlay");
     const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idRef = useRef(0);
 
-    // On mount: set click-through and initial position, then request config
+    // On mount: read own label, set click-through, position, then request config
     useEffect(() => {
         const init = async () => {
+            const win = getCurrentWindow();
+            setLabel(win.label);
             try {
-                await getCurrentWindow().setIgnoreCursorEvents(true);
+                await win.setIgnoreCursorEvents(true);
             } catch (e) {
                 console.error("setIgnoreCursorEvents failed:", e);
             }
@@ -76,24 +79,26 @@ export default function Overlay() {
             } catch (e) {
                 console.error("initial position failed:", e);
             }
+            emitTo("main", `${win.label}:config-request`);
         };
         init();
-        emitTo("main", "screen-overlay:config-request");
     }, []);
 
     // Receive full config snapshot and reposition
     useEffect(() => {
-        const unlisten = listen<OverlayConfig>("screen-overlay:config", (event) => {
+        if (!label) return;
+        const unlisten = listen<OverlayConfig>(`${label}:config`, (event) => {
             setConfig(event.payload);
             positionWindow(event.payload.corner);
         });
         return () => { unlisten.then((fn) => fn()); };
-    }, []);
+    }, [label]);
 
     // Receive a new transcription+translation line
     useEffect(() => {
+        if (!label) return;
         const unlisten = listen<{ transcription: string; translation: string }>(
-            "screen-overlay:line",
+            `${label}:line`,
             (event) => {
                 const { transcription, translation } = event.payload;
                 if (!transcription && !translation) return;
@@ -109,7 +114,7 @@ export default function Overlay() {
             }
         );
         return () => { unlisten.then((fn) => fn()); };
-    }, [config.max_lines, config.fade_timeout]);
+    }, [label, config.max_lines, config.fade_timeout]);
 
     const hasContent = lines.length > 0 && visible;
 

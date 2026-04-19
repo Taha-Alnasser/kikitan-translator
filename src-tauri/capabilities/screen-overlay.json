@@ -3,7 +3,7 @@
     "identifier": "screen-overlay",
     "description": "Permissions for the screen overlay window",
     "local": true,
-    "windows": ["screen-overlay"],
+    "windows": ["screen-overlay", "screen-overlay-2"],
     "permissions": [
         "core:default",
         "core:window:allow-set-position",

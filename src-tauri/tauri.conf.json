@@ -62,6 +62,19 @@
         "visible": true,
         "skipTaskbar": true,
         "resizable": false
+      },
+      {
+        "label": "screen-overlay-2",
+        "title": "",
+        "url": "overlay.html",
+        "width": 600,
+        "height": 300,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": true,
+        "skipTaskbar": true,
+        "resizable": false
       }
     ]
   }

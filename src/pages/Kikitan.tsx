@@ -42,6 +42,7 @@ import {
 } from "../util/constants";
 
 import { Config, load_config, MessageHistoryItem } from "../util/config";
+import { performTranslation } from "../util/translate";
 import { Recognizer } from "../recognizers/recognizer";
 import { EdgeSTT } from "../recognizers/EdgeSTT";
 
@@ -323,6 +324,23 @@ export default function Kikitan({
                 emitTo("screen-overlay", "screen-overlay:line", {
                     transcription: current_detection,
                     translation: config.mode === 0 ? current_translation : "",
+                });
+            }
+
+            // Send to second screen overlay with its own target language
+            if (config.screen_overlay_2?.enabled && config.mode === 0 && (!config.screen_overlay_2.vrc_only || vrchatRunning)) {
+                performTranslation(
+                    current_detection,
+                    config.source_language,
+                    config.screen_overlay_2.target_language,
+                    config,
+                    null,
+                    null
+                ).then((translation2) => {
+                    emitTo("screen-overlay-2", "screen-overlay-2:line", {
+                        transcription: current_detection,
+                        translation: translation2,
+                    });
                 });
             }
 

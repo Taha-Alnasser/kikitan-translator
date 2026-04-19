@@ -274,7 +274,7 @@ export default function Kikitan({
             })
         }
 
-        if (!detecting && result.length != 0 && (result[1].length != 0 || config.screen_overlay?.enabled)) {
+        if (!detecting && result.length != 0 && (result[1].length != 0 || config.screen_overlay?.enabled || config.screen_overlay_2?.enabled)) {
             detectionQueue = [...detectionQueue, result];
 
             info(
@@ -383,7 +383,7 @@ export default function Kikitan({
                 });
             }
 
-            if (config.vrchat_settings.enable_chatbox) {
+            if (config.vrchat_settings.enable_chatbox && current_translation.length > 0) {
                 info("[TRANSLATION] Sending the message to chatbox...");
                 invoke("send_message", {
                     address: config.vrchat_settings.osc_address,

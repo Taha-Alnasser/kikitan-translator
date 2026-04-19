@@ -161,8 +161,16 @@ export function validate_config(config: Config): Config {
     // Validation 2: Update source and target language
     if (typeof cfg.source_language === "number") {
         cfg.source_language = langSource[cfg.source_language].code
-
         debug(`[CONFIG] Updated source language to ${cfg.source_language}`)
+    }
+
+    // Validation 3: Ensure overlay language fields are valid strings
+    for (const overlayKey of ["screen_overlay", "screen_overlay_2"] as const) {
+        const ov = cfg[overlayKey];
+        if (ov) {
+            if (typeof ov.source_language !== "string") ov.source_language = DEFAULT_CONFIG[overlayKey].source_language;
+            if (typeof ov.target_language !== "string") ov.target_language = DEFAULT_CONFIG[overlayKey].target_language;
+        }
     }
 
     if (typeof cfg.target_language === "number") {

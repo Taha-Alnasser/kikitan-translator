@@ -9,6 +9,7 @@ type OverlayLine = {
 };
 
 type OverlayConfig = {
+    enabled: boolean;
     font_size: number;
     transcription_font_size: number;
     fade_timeout: number;
@@ -19,6 +20,7 @@ type OverlayConfig = {
 };
 
 const DEFAULT_CONFIG: OverlayConfig = {
+    enabled: false,
     font_size: 18,
     transcription_font_size: 22,
     fade_timeout: 5,
@@ -84,12 +86,18 @@ export default function Overlay() {
         init();
     }, []);
 
-    // Receive full config snapshot and reposition
+    // Receive full config snapshot, show/hide, and reposition
     useEffect(() => {
         if (!label) return;
         const unlisten = listen<OverlayConfig>(`${label}:config`, (event) => {
-            setConfig(event.payload);
-            positionWindow(event.payload.corner);
+            const cfg = event.payload;
+            setConfig(cfg);
+            const win = getCurrentWindow();
+            if (cfg.enabled) {
+                positionWindow(cfg.corner).then(() => win.show());
+            } else {
+                win.hide();
+            }
         });
         return () => { unlisten.then((fn) => fn()); };
     }, [label]);

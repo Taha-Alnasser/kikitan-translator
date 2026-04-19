@@ -17,7 +17,7 @@ import {
 import { Config, DEFAULT_CONFIG, speed_presets, ScreenOverlayConfig } from "../util/config";
 
 import { localization } from "../util/localization";
-import { DAILY_TOKEN_LIMIT, Lang } from "../util/constants";
+import { DAILY_TOKEN_LIMIT, Lang, langTo } from "../util/constants";
 import { open } from "@tauri-apps/plugin-shell";
 
 type CustomTabPanelProps = {
@@ -105,6 +105,7 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                         <Tab label={localization.translator_settings[lang]} {...a11yProps(2)} />
                         <Tab label={localization.advanced_settings[lang]} {...a11yProps(3)} />
                         <Tab label="Screen Overlay" {...a11yProps(4)} />
+                        <Tab label="Overlay 2" {...a11yProps(5)} />
                     </Tabs>
                 </Box>
                 <CustomTabPanel className="flex" value={page} index={0}>
@@ -591,6 +592,153 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                                 onChange={(e) => setConfig({
                                     ...config,
                                     screen_overlay: { ...config.screen_overlay, transcription_color: e.target.value }
+                                })}
+                                placeholder="#60a5fa"
+                                sx={{ input: { color: config.light_mode ? 'black' : 'white' }, width: 140 }}
+                            />
+                        </div>
+                    </div>
+                </CustomTabPanel>
+                <CustomTabPanel className="flex" value={page} index={5}>
+                    <div className={`flex flex-col gap-4 ${config.light_mode ? "text-black" : "text-slate-200"}`}>
+                        <p className="text-lg font-semibold">Overlay 2</p>
+
+                        <FormGroup>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={config.screen_overlay_2.enabled}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            screen_overlay_2: { ...config.screen_overlay_2, enabled: e.target.checked }
+                                        })}
+                                    />
+                                }
+                                label="Enable Overlay 2"
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={config.screen_overlay_2.vrc_only}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            screen_overlay_2: { ...config.screen_overlay_2, vrc_only: e.target.checked }
+                                        })}
+                                    />
+                                }
+                                label="Only show while VRChat is running"
+                            />
+                        </FormGroup>
+
+                        <div>
+                            <p className="mb-1 text-sm">Target Language</p>
+                            <Select
+                                size="small"
+                                value={config.screen_overlay_2.target_language}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, target_language: e.target.value }
+                                })}
+                                sx={{ color: config.light_mode ? 'black' : 'white', '& .MuiSvgIcon-root': { color: config.light_mode ? 'black' : 'white' } }}
+                            >
+                                {langTo.map((l) => (
+                                    <MenuItem key={l.code} value={l.code}>{l.name.en}</MenuItem>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Corner Position</p>
+                            <Select
+                                size="small"
+                                value={config.screen_overlay_2.corner}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, corner: e.target.value as ScreenOverlayConfig["corner"] }
+                                })}
+                                sx={{ color: config.light_mode ? 'black' : 'white', '& .MuiSvgIcon-root': { color: config.light_mode ? 'black' : 'white' } }}
+                            >
+                                <MenuItem value="bottom-right">Bottom Right</MenuItem>
+                                <MenuItem value="bottom-left">Bottom Left</MenuItem>
+                                <MenuItem value="top-right">Top Right</MenuItem>
+                                <MenuItem value="top-left">Top Left</MenuItem>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Transcription Font Size: {config.screen_overlay_2.transcription_font_size}px</p>
+                            <Slider
+                                min={12} max={48} step={1}
+                                value={config.screen_overlay_2.transcription_font_size}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, transcription_font_size: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Translation Font Size: {config.screen_overlay_2.font_size}px</p>
+                            <Slider
+                                min={12} max={48} step={1}
+                                value={config.screen_overlay_2.font_size}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, font_size: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Fade Timeout: {config.screen_overlay_2.fade_timeout}s</p>
+                            <Slider
+                                min={2} max={20} step={1}
+                                value={config.screen_overlay_2.fade_timeout}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, fade_timeout: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Max Lines: {config.screen_overlay_2.max_lines}</p>
+                            <Slider
+                                min={1} max={8} step={1}
+                                value={config.screen_overlay_2.max_lines}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, max_lines: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Translation Text Color</p>
+                            <TextField
+                                size="small"
+                                value={config.screen_overlay_2.text_color}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, text_color: e.target.value }
+                                })}
+                                placeholder="#ffffff"
+                                sx={{ input: { color: config.light_mode ? 'black' : 'white' }, width: 140 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Transcription Text Color</p>
+                            <TextField
+                                size="small"
+                                value={config.screen_overlay_2.transcription_color}
+                                onChange={(e) => setConfig({
+                                    ...config,
+                                    screen_overlay_2: { ...config.screen_overlay_2, transcription_color: e.target.value }
                                 })}
                                 placeholder="#60a5fa"
                                 sx={{ input: { color: config.light_mode ? 'black' : 'white' }, width: 140 }}

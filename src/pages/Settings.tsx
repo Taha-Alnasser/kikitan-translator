@@ -109,6 +109,15 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                 </Box>
                 <CustomTabPanel className="flex" value={page} index={0}>
                     <FormGroup>
+                        <FormControlLabel control={<Checkbox checked={config.vrchat_settings.enable_chatbox} onChange={(e) => {
+                            setConfig({
+                                ...config,
+                                vrchat_settings: {
+                                    ...config.vrchat_settings,
+                                    enable_chatbox: e.target.checked
+                                }
+                            })
+                        }} />} label="Send to VRChat chatbox" />
                         <FormControlLabel control={<Checkbox checked={config.vrchat_settings.translation_first} onChange={(e) => {
                             setConfig({
                                 ...config,

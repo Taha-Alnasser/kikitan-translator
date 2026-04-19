@@ -142,6 +142,22 @@ function App() {
     return () => { unlisten.then((fn) => fn()); };
   }, [config.screen_overlay]);
 
+  // Respond to config-request from overlay 2 window and push config on any change
+  React.useEffect(() => {
+    const sendConfig2 = () => {
+        if (!config.screen_overlay_2) return;
+        emitTo("screen-overlay-2", "screen-overlay-2:config", config.screen_overlay_2);
+    };
+
+    sendConfig2();
+
+    const unlisten = listen("screen-overlay-2:config-request", () => {
+        sendConfig2();
+    });
+
+    return () => { unlisten.then((fn) => fn()); };
+  }, [config.screen_overlay_2]);
+
   return (
     <>
       <div className={`relative transition-all duration-500 ${!loaded ? "opacity-0 pointer-events-none" : "opacity-100"} ${!config.light_mode ? "bg-slate-950 text-white" : ""}`}>

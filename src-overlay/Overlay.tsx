@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { listen, emit } from "@tauri-apps/api/event";
+import { listen, emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import { primaryMonitor } from "@tauri-apps/api/window";
 
@@ -67,7 +67,7 @@ export default function Overlay() {
 
     // On mount: request config from main window
     useEffect(() => {
-        emit("screen-overlay:config-request");
+        emitTo("main", "screen-overlay:config-request");
     }, []);
 
     // Receive full config snapshot

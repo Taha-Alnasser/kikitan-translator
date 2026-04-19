@@ -31,7 +31,7 @@ import {
 } from "@mui/icons-material";
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen, emit } from "@tauri-apps/api/event";
+import { listen, emitTo } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-shell";
 
 import {
@@ -271,7 +271,7 @@ export default function Kikitan({
             })
         }
 
-        if (!detecting && result.length != 0 && result[1].length != 0) {
+        if (!detecting && result.length != 0 && (result[1].length != 0 || config.screen_overlay?.enabled)) {
             detectionQueue = [...detectionQueue, result];
 
             info(
@@ -318,7 +318,7 @@ export default function Kikitan({
 
             // Send to screen overlay if enabled
             if (config.screen_overlay?.enabled) {
-                emit("screen-overlay:line", {
+                emitTo("screen-overlay", "screen-overlay:line", {
                     transcription: current_detection,
                     translation: config.mode === 0 ? current_translation : "",
                 });

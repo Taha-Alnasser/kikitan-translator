@@ -24,7 +24,7 @@ import {
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-shell'
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emitTo, listen } from "@tauri-apps/api/event";
 
 import SettingsPage from './pages/Settings';
 
@@ -134,7 +134,7 @@ function App() {
   React.useEffect(() => {
     const sendConfig = () => {
         if (!config.screen_overlay) return;
-        emit("screen-overlay:config", config.screen_overlay);
+        emitTo("screen-overlay", "screen-overlay:config", config.screen_overlay);
     };
 
     sendConfig();

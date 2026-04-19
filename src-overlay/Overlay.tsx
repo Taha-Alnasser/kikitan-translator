@@ -10,6 +10,7 @@ type OverlayLine = {
 
 type OverlayConfig = {
     font_size: number;
+    transcription_font_size: number;
     fade_timeout: number;
     max_lines: number;
     text_color: string;
@@ -19,6 +20,7 @@ type OverlayConfig = {
 
 const DEFAULT_CONFIG: OverlayConfig = {
     font_size: 18,
+    transcription_font_size: 22,
     fade_timeout: 5,
     max_lines: 3,
     text_color: "#ffffff",
@@ -137,7 +139,7 @@ export default function Overlay() {
                     <div key={line.id} style={{ marginBottom: idx < lines.length - 1 ? "8px" : 0, opacity }}>
                         {line.transcription && (
                             <div style={{
-                                fontSize: `${config.font_size * 0.82}px`,
+                                fontSize: `${config.transcription_font_size}px`,
                                 color: config.transcription_color,
                                 lineHeight: 1.35,
                             }}>

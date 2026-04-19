@@ -21,6 +21,7 @@ export type ScreenOverlayConfig = {
     enabled: boolean;
     vrc_only: boolean;
     font_size: number;
+    transcription_font_size: number;
     fade_timeout: number;
     max_lines: number;
     text_color: string;
@@ -107,6 +108,7 @@ export const DEFAULT_CONFIG: Config = {
         enabled: false,
         vrc_only: false,
         font_size: 18,
+        transcription_font_size: 22,
         fade_timeout: 5,
         max_lines: 3,
         text_color: "#ffffff",

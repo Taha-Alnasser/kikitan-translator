@@ -518,9 +518,22 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                         </div>
 
                         <div>
-                            <p className="mb-1 text-sm">Font Size: {config.screen_overlay.font_size}px</p>
+                            <p className="mb-1 text-sm">Transcription Font Size: {config.screen_overlay.transcription_font_size}px</p>
                             <Slider
-                                min={12} max={36} step={1}
+                                min={12} max={48} step={1}
+                                value={config.screen_overlay.transcription_font_size}
+                                onChange={(_e, v) => setConfig({
+                                    ...config,
+                                    screen_overlay: { ...config.screen_overlay, transcription_font_size: v as number }
+                                })}
+                                sx={{ width: 200 }}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="mb-1 text-sm">Translation Font Size: {config.screen_overlay.font_size}px</p>
+                            <Slider
+                                min={12} max={48} step={1}
                                 value={config.screen_overlay.font_size}
                                 onChange={(_e, v) => setConfig({
                                     ...config,

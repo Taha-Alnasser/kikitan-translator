@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { listen, emitTo } from "@tauri-apps/api/event";
-import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
-import { primaryMonitor } from "@tauri-apps/api/window";
+import { getCurrentWindow, PhysicalPosition, currentMonitor } from "@tauri-apps/api/window";
 
 type OverlayLine = {
     id: number;
@@ -27,13 +26,12 @@ const DEFAULT_CONFIG: OverlayConfig = {
     corner: "bottom-right",
 };
 
-// Width/height of the overlay window itself (must match tauri.conf.json)
 const OVERLAY_W = 600;
 const OVERLAY_H = 300;
 const MARGIN = 24;
 
 async function positionWindow(corner: OverlayConfig["corner"]) {
-    const monitor = await primaryMonitor();
+    const monitor = await currentMonitor();
     if (!monitor) return;
 
     const sw = monitor.size.width;
@@ -42,10 +40,9 @@ async function positionWindow(corner: OverlayConfig["corner"]) {
 
     const lw = OVERLAY_W * sf;
     const lh = OVERLAY_H * sf;
-
-    let x = 0, y = 0;
     const marginPx = MARGIN * sf;
 
+    let x = 0, y = 0;
     switch (corner) {
         case "bottom-right": x = sw - lw - marginPx; y = sh - lh - marginPx; break;
         case "bottom-left": x = marginPx; y = sh - lh - marginPx; break;
@@ -55,22 +52,34 @@ async function positionWindow(corner: OverlayConfig["corner"]) {
 
     const appWindow = getCurrentWindow();
     await appWindow.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
-    await appWindow.setIgnoreCursorEvents(true);
 }
 
 export default function Overlay() {
     const [lines, setLines] = useState<OverlayLine[]>([]);
-    const [visible, setVisible] = useState(true);
+    const [visible, setVisible] = useState(false);
     const [config, setConfig] = useState<OverlayConfig>(DEFAULT_CONFIG);
     const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idRef = useRef(0);
 
-    // On mount: request config from main window
+    // On mount: set click-through and initial position, then request config
     useEffect(() => {
+        const init = async () => {
+            try {
+                await getCurrentWindow().setIgnoreCursorEvents(true);
+            } catch (e) {
+                console.error("setIgnoreCursorEvents failed:", e);
+            }
+            try {
+                await positionWindow(DEFAULT_CONFIG.corner);
+            } catch (e) {
+                console.error("initial position failed:", e);
+            }
+        };
+        init();
         emitTo("main", "screen-overlay:config-request");
     }, []);
 
-    // Receive full config snapshot
+    // Receive full config snapshot and reposition
     useEffect(() => {
         const unlisten = listen<OverlayConfig>("screen-overlay:config", (event) => {
             setConfig(event.payload);
@@ -100,7 +109,7 @@ export default function Overlay() {
         return () => { unlisten.then((fn) => fn()); };
     }, [config.max_lines, config.fade_timeout]);
 
-    const bgAlpha = 0.65;
+    const hasContent = lines.length > 0 && visible;
 
     return (
         <div
@@ -112,10 +121,10 @@ export default function Overlay() {
                 justifyContent: "flex-end",
                 padding: "12px 16px",
                 borderRadius: "10px",
-                background: `rgba(15, 15, 30, ${bgAlpha})`,
+                background: hasContent ? "rgba(15, 15, 30, 0.65)" : "transparent",
                 fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 transition: "opacity 1s ease",
-                opacity: visible ? 1 : 0,
+                opacity: hasContent ? 1 : 0,
                 userSelect: "none",
                 WebkitUserSelect: "none",
                 pointerEvents: "none",

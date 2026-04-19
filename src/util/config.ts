@@ -29,6 +29,10 @@ export type ScreenOverlayConfig = {
     corner: "bottom-right" | "bottom-left" | "top-right" | "top-left";
 }
 
+export type ScreenOverlay2Config = ScreenOverlayConfig & {
+    target_language: string;
+}
+
 export type Config = {
     source_language: string,
     target_language: string,
@@ -65,7 +69,8 @@ export type Config = {
         used_tokens: number,
         last_used_day: number
     },
-    screen_overlay: ScreenOverlayConfig
+    screen_overlay: ScreenOverlayConfig,
+    screen_overlay_2: ScreenOverlay2Config
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -114,6 +119,18 @@ export const DEFAULT_CONFIG: Config = {
         text_color: "#ffffff",
         transcription_color: "#60a5fa",
         corner: "bottom-right"
+    },
+    screen_overlay_2: {
+        enabled: false,
+        vrc_only: false,
+        target_language: "ja",
+        font_size: 18,
+        transcription_font_size: 22,
+        fade_timeout: 5,
+        max_lines: 3,
+        text_color: "#ffffff",
+        transcription_color: "#60a5fa",
+        corner: "top-left"
     }
 }
 

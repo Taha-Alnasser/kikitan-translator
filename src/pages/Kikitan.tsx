@@ -321,17 +321,33 @@ export default function Kikitan({
 
             // Send to screen overlay if enabled (and VRChat is running if vrc_only is set)
             if (config.screen_overlay?.enabled && (!config.screen_overlay.vrc_only || vrchatRunning)) {
-                emitTo("screen-overlay", "screen-overlay:line", {
-                    transcription: current_detection,
-                    translation: config.mode === 0 ? current_translation : "",
-                });
+                if (config.mode === 0) {
+                    performTranslation(
+                        current_detection,
+                        config.screen_overlay.source_language,
+                        config.screen_overlay.target_language,
+                        config,
+                        null,
+                        null
+                    ).then((translation1) => {
+                        emitTo("screen-overlay", "screen-overlay:line", {
+                            transcription: current_detection,
+                            translation: translation1,
+                        });
+                    });
+                } else {
+                    emitTo("screen-overlay", "screen-overlay:line", {
+                        transcription: current_detection,
+                        translation: "",
+                    });
+                }
             }
 
-            // Send to second screen overlay with its own target language
+            // Send to second screen overlay with its own source and target language
             if (config.screen_overlay_2?.enabled && config.mode === 0 && (!config.screen_overlay_2.vrc_only || vrchatRunning)) {
                 performTranslation(
                     current_detection,
-                    config.source_language,
+                    config.screen_overlay_2.source_language,
                     config.screen_overlay_2.target_language,
                     config,
                     null,

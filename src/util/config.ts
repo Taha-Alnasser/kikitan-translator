@@ -20,6 +20,8 @@ export type MessageHistoryItem = {
 export type ScreenOverlayConfig = {
     enabled: boolean;
     vrc_only: boolean;
+    source_language: string;
+    target_language: string;
     font_size: number;
     transcription_font_size: number;
     fade_timeout: number;
@@ -29,9 +31,7 @@ export type ScreenOverlayConfig = {
     corner: "bottom-right" | "bottom-left" | "top-right" | "top-left";
 }
 
-export type ScreenOverlay2Config = ScreenOverlayConfig & {
-    target_language: string;
-}
+export type ScreenOverlay2Config = ScreenOverlayConfig;
 
 export type Config = {
     source_language: string,
@@ -112,17 +112,20 @@ export const DEFAULT_CONFIG: Config = {
     screen_overlay: {
         enabled: false,
         vrc_only: false,
+        source_language: "en",
+        target_language: "ja",
         font_size: 18,
         transcription_font_size: 22,
         fade_timeout: 5,
         max_lines: 3,
         text_color: "#ffffff",
         transcription_color: "#60a5fa",
-        corner: "bottom-right"
+        corner: "top-right"
     },
     screen_overlay_2: {
         enabled: false,
         vrc_only: false,
+        source_language: "en",
         target_language: "ja",
         font_size: 18,
         transcription_font_size: 22,

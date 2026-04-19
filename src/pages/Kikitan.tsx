@@ -61,6 +61,7 @@ type KikitanProps = {
     setConfig: (config: Config) => void;
     lang: Lang;
     settingsVisible: boolean;
+    vrchatRunning: boolean;
 };
 
 let sr: Recognizer | null = null;
@@ -73,7 +74,8 @@ export default function Kikitan({
     config,
     setConfig,
     lang,
-    settingsVisible
+    settingsVisible,
+    vrchatRunning
 }: KikitanProps) {
     const [detecting, setDetecting] = React.useState(false);
     const [srStatus, setSRStatus] = React.useState(true);
@@ -316,8 +318,8 @@ export default function Kikitan({
             const current_detection = current[0];
             const current_translation = current[1];
 
-            // Send to screen overlay if enabled
-            if (config.screen_overlay?.enabled) {
+            // Send to screen overlay if enabled (and VRChat is running if vrc_only is set)
+            if (config.screen_overlay?.enabled && (!config.screen_overlay.vrc_only || vrchatRunning)) {
                 emitTo("screen-overlay", "screen-overlay:line", {
                     transcription: current_detection,
                     translation: config.mode === 0 ? current_translation : "",

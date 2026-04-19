@@ -19,6 +19,7 @@ export type MessageHistoryItem = {
 
 export type ScreenOverlayConfig = {
     enabled: boolean;
+    vrc_only: boolean;
     font_size: number;
     fade_timeout: number;
     max_lines: number;
@@ -104,6 +105,7 @@ export const DEFAULT_CONFIG: Config = {
     },
     screen_overlay: {
         enabled: false,
+        vrc_only: false,
         font_size: 18,
         fade_timeout: 5,
         max_lines: 3,

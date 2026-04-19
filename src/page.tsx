@@ -54,6 +54,7 @@ function App() {
   const [appVersion, setAppVersion] = React.useState("")
 
   const [loaded, setLoaded] = React.useState(false)
+  const [vrchatRunning, setVrchatRunning] = React.useState(false)
 
   React.useEffect(() => {
     if (loaded) update_config(config)
@@ -116,6 +117,14 @@ function App() {
       })
     }
   }, [quickstartVisible])
+
+  // Poll VRChat running status every 5s for vrc_only overlay mode
+  React.useEffect(() => {
+    const poll = () => invoke<boolean>("is_vrchat_running").then(setVrchatRunning);
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   // Respond to config-request from overlay window and push config on any change
   React.useEffect(() => {
@@ -251,7 +260,7 @@ function App() {
             </Toolbar>
           </AppBar>
           <div className='flex flex-1 items-center align-middle flex-col mt-8'>
-            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible}></Kikitan>}
+            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible} vrchatRunning={vrchatRunning}></Kikitan>}
           </div>
         </div>
       </div>

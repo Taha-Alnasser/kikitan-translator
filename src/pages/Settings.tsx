@@ -485,6 +485,18 @@ export default function Settings({ closeCallback, config, setConfig, lang }: Set
                                 }
                                 label="Enable Screen Overlay"
                             />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={config.screen_overlay.vrc_only}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            screen_overlay: { ...config.screen_overlay, vrc_only: e.target.checked }
+                                        })}
+                                    />
+                                }
+                                label="Only show overlay while VRChat is running"
+                            />
                         </FormGroup>
 
                         <div>

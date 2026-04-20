@@ -80,7 +80,6 @@ export default function Kikitan({
     setConfig,
     lang,
     settingsVisible,
-    vrchatRunning
 }: KikitanProps) {
     const [detecting, setDetecting] = React.useState(false);
     const [srStatus, setSRStatus] = React.useState(true);
@@ -367,8 +366,22 @@ export default function Kikitan({
             const current_detection = current[0];
             const current_translation = current[1];
 
-            // Overlay 1 (mic audio): translate with its own language pair and send to VRChat
-            if (cfg.screen_overlay?.enabled && (!cfg.screen_overlay.vrc_only || vrchatRunning)) {
+            // VRChat chatbox: uses main translation, independent of overlay state
+            if (cfg.mode === 0 && cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
+                info("[TRANSLATION] Sending main translation to chatbox...");
+                invoke("send_message", {
+                    address: cfg.vrchat_settings.osc_address,
+                    port: `${cfg.vrchat_settings.osc_port}`,
+                    msg: cfg.vrchat_settings.only_translation
+                        ? current_translation
+                        : cfg.vrchat_settings.translation_first
+                            ? `${current_translation} (${current_detection})`
+                            : `${current_detection} (${current_translation})`,
+                });
+            }
+
+            // Overlay 1: translate with its own language pair and display (no VRChat)
+            if (cfg.screen_overlay?.enabled) {
                 if (cfg.mode === 0) {
                     performTranslation(
                         current_detection,
@@ -382,19 +395,6 @@ export default function Kikitan({
                             transcription: current_detection,
                             translation: translation1,
                         });
-                        // Only overlay 1 sends to VRChat chatbox
-                        if (cfg.vrchat_settings.enable_chatbox && translation1.length > 0) {
-                            info("[TRANSLATION] Sending overlay 1 translation to chatbox...");
-                            invoke("send_message", {
-                                address: cfg.vrchat_settings.osc_address,
-                                port: `${cfg.vrchat_settings.osc_port}`,
-                                msg: cfg.vrchat_settings.only_translation
-                                    ? translation1
-                                    : cfg.vrchat_settings.translation_first
-                                        ? `${translation1} (${current_detection})`
-                                        : `${current_detection} (${translation1})`,
-                            });
-                        }
                     });
                 } else {
                     emitTo("screen-overlay", "screen-overlay:line", {
@@ -402,18 +402,6 @@ export default function Kikitan({
                         translation: "",
                     });
                 }
-            } else if (!cfg.screen_overlay?.enabled && cfg.mode === 0 && cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
-                // Overlay 1 disabled: fall back to sending the main translation to VRChat
-                info("[TRANSLATION] Sending main translation to chatbox (overlay 1 disabled)...");
-                invoke("send_message", {
-                    address: cfg.vrchat_settings.osc_address,
-                    port: `${cfg.vrchat_settings.osc_port}`,
-                    msg: cfg.vrchat_settings.only_translation
-                        ? current_translation
-                        : cfg.vrchat_settings.translation_first
-                            ? `${current_translation} (${current_detection})`
-                            : `${current_detection} (${current_translation})`,
-                });
             }
 
             // Overlay 2 is fed by sr2 (its own mic recognizer) — not the mic queue
@@ -746,7 +734,7 @@ export default function Kikitan({
                     </div>
                     <div className="flex gap-3">
                         {([
-                            { label: "Overlay 1", key: "screen_overlay" as const, note: "→ VRChat" },
+                            { label: "Overlay 1", key: "screen_overlay" as const, note: "" },
                             { label: "Overlay 2", key: "screen_overlay_2" as const, note: "" },
                         ] as const).map(({ label, key, note }) => {
                             const ov = config[key];

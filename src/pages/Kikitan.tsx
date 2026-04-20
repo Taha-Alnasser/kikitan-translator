@@ -92,6 +92,8 @@ export default function Kikitan({
     const [microphones, setMicrophones] = React.useState<{ name: string, sample_rate: number }[]>([])
 
     const [triggerUpdate, setTriggerUpdate] = React.useState(false);
+    const configRef = React.useRef(config);
+    configRef.current = config;
 
     const [sourceLanguage, setSourceLanguage] = React.useState(
         config.source_language
@@ -312,6 +314,9 @@ export default function Kikitan({
 
             lock = true;
 
+            // Always read current config from ref — avoids stale closure bugs
+            const cfg = configRef.current;
+
             info(
                 `[QUEUE] Processing the queue. Current queue length: ${detectionQueue.length}`
             );
@@ -320,13 +325,13 @@ export default function Kikitan({
             const current_translation = current[1];
 
             // Send to screen overlay if enabled (and VRChat is running if vrc_only is set)
-            if (config.screen_overlay?.enabled && (!config.screen_overlay.vrc_only || vrchatRunning)) {
-                if (config.mode === 0) {
+            if (cfg.screen_overlay?.enabled && (!cfg.screen_overlay.vrc_only || vrchatRunning)) {
+                if (cfg.mode === 0) {
                     performTranslation(
                         current_detection,
-                        config.screen_overlay.source_language,
-                        config.screen_overlay.target_language,
-                        config,
+                        cfg.screen_overlay.source_language,
+                        cfg.screen_overlay.target_language,
+                        cfg,
                         null,
                         null
                     ).then((translation1) => {
@@ -344,12 +349,12 @@ export default function Kikitan({
             }
 
             // Send to second screen overlay with its own source and target language
-            if (config.screen_overlay_2?.enabled && config.mode === 0 && (!config.screen_overlay_2.vrc_only || vrchatRunning)) {
+            if (cfg.screen_overlay_2?.enabled && cfg.mode === 0 && (!cfg.screen_overlay_2.vrc_only || vrchatRunning)) {
                 performTranslation(
                     current_detection,
-                    config.screen_overlay_2.source_language,
-                    config.screen_overlay_2.target_language,
-                    config,
+                    cfg.screen_overlay_2.source_language,
+                    cfg.screen_overlay_2.target_language,
+                    cfg,
                     null,
                     null
                 ).then((translation2) => {
@@ -360,9 +365,9 @@ export default function Kikitan({
                 });
             }
 
-            if (config.mode == 0) setTranslated(current_translation);
+            if (cfg.mode == 0) setTranslated(current_translation);
 
-            if (config.message_history.enabled) {
+            if (cfg.message_history.enabled) {
                 const newHistoryItem: MessageHistoryItem = {
                     source: current_detection,
                     translation: current_translation,
@@ -371,26 +376,26 @@ export default function Kikitan({
 
                 const updatedItems = [
                     newHistoryItem,
-                    ...config.message_history.items,
-                ].slice(0, config.message_history.max_items);
+                    ...cfg.message_history.items,
+                ].slice(0, cfg.message_history.max_items);
 
                 setConfig({
-                    ...config,
+                    ...cfg,
                     message_history: {
-                        ...config.message_history,
+                        ...cfg.message_history,
                         items: updatedItems,
                     },
                 });
             }
 
-            if (config.vrchat_settings.enable_chatbox && current_translation.length > 0) {
+            if (cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
                 info("[TRANSLATION] Sending the message to chatbox...");
                 invoke("send_message", {
-                    address: config.vrchat_settings.osc_address,
-                    port: `${config.vrchat_settings.osc_port}`,
-                    msg: config.vrchat_settings.only_translation
+                    address: cfg.vrchat_settings.osc_address,
+                    port: `${cfg.vrchat_settings.osc_port}`,
+                    msg: cfg.vrchat_settings.only_translation
                         ? current_translation
-                        : config.vrchat_settings.translation_first
+                        : cfg.vrchat_settings.translation_first
                             ? `${current_translation} (${current_detection})`
                             : `${current_detection} (${current_translation})`,
                 });
@@ -401,7 +406,7 @@ export default function Kikitan({
                     r,
                     calculateMinWaitTime(
                         current_translation,
-                        config.vrchat_settings.chatbox_update_speed
+                        cfg.vrchat_settings.chatbox_update_speed
                     )
                 )
             );

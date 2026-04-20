@@ -66,6 +66,7 @@ type KikitanProps = {
 };
 
 let sr: Recognizer | null = null;
+let sr2: Recognizer | null = null;
 let desktopSR: Recognizer | null = null;
 let detectionQueue: string[][] = [];
 let lock = false;
@@ -154,8 +155,6 @@ export default function Kikitan({
             }
 
             if (isFinal) {
-                console.log("[DESKTOP CAPTURE] Result: " + result);
-
                 setDesktopResult(result[1]);
             }
         });
@@ -215,6 +214,45 @@ export default function Kikitan({
             desktopSR?.stop();
             desktopSR = null;
         }
+    };
+
+    const restartOverlay2SR = () => {
+        sr2?.stop();
+        sr2 = null;
+
+        const cfg = load_config();
+        if (!cfg.screen_overlay_2?.enabled) return;
+
+        const ov2 = cfg.screen_overlay_2;
+
+        switch (cfg.translator_settings.recognition_service) {
+            case 0: // Microsoft Bing
+                sr2 = new EdgeSTT(ov2.source_language, ov2.target_language, false, false, null, showNotification, setConfig);
+                info(`[SR2] Using EdgeSTT (${ov2.source_language} → ${ov2.target_language})`);
+                break;
+            case 1: // Groq
+                sr2 = new VAD(ov2.source_language, ov2.target_language, false, false, null, showNotification, setConfig);
+                info(`[SR2] Using Groq (${ov2.source_language} → ${ov2.target_language})`);
+                break;
+            case 2: // WebSpeech, legacy
+                sr2 = new WebSpeech(ov2.source_language, ov2.target_language, false, null, showNotification, setConfig);
+                info(`[SR2] Using WebSpeech (${ov2.source_language} → ${ov2.target_language})`);
+                break;
+            default:
+                error(`[SR2] Unknown recognizer!`);
+                return;
+        }
+
+        sr2.onResult((result: string[], isFinal: boolean) => {
+            if (isFinal && configRef.current.screen_overlay_2?.enabled) {
+                emitTo("screen-overlay-2", "screen-overlay-2:line", {
+                    transcription: result[0],
+                    translation: result[1],
+                });
+            }
+        });
+
+        sr2.start();
     };
 
     React.useEffect(() => {
@@ -298,10 +336,12 @@ export default function Kikitan({
             info("[SR] Starting SR...");
             sr.start();
             desktopSR?.start();
+            sr2?.start();
         } else {
             info("[SR] Stopping SR...");
             sr.stop();
             desktopSR?.stop();
+            sr2?.stop();
         }
     }, [srStatus]);
 
@@ -324,7 +364,7 @@ export default function Kikitan({
             const current_detection = current[0];
             const current_translation = current[1];
 
-            // Send to screen overlay if enabled (and VRChat is running if vrc_only is set)
+            // Overlay 1 (mic audio): translate with its own language pair and send to VRChat
             if (cfg.screen_overlay?.enabled && (!cfg.screen_overlay.vrc_only || vrchatRunning)) {
                 if (cfg.mode === 0) {
                     performTranslation(
@@ -339,6 +379,19 @@ export default function Kikitan({
                             transcription: current_detection,
                             translation: translation1,
                         });
+                        // Only overlay 1 sends to VRChat chatbox
+                        if (cfg.vrchat_settings.enable_chatbox && translation1.length > 0) {
+                            info("[TRANSLATION] Sending overlay 1 translation to chatbox...");
+                            invoke("send_message", {
+                                address: cfg.vrchat_settings.osc_address,
+                                port: `${cfg.vrchat_settings.osc_port}`,
+                                msg: cfg.vrchat_settings.only_translation
+                                    ? translation1
+                                    : cfg.vrchat_settings.translation_first
+                                        ? `${translation1} (${current_detection})`
+                                        : `${current_detection} (${translation1})`,
+                            });
+                        }
                     });
                 } else {
                     emitTo("screen-overlay", "screen-overlay:line", {
@@ -346,24 +399,21 @@ export default function Kikitan({
                         translation: "",
                     });
                 }
-            }
-
-            // Send to second screen overlay with its own source and target language
-            if (cfg.screen_overlay_2?.enabled && cfg.mode === 0 && (!cfg.screen_overlay_2.vrc_only || vrchatRunning)) {
-                performTranslation(
-                    current_detection,
-                    cfg.screen_overlay_2.source_language,
-                    cfg.screen_overlay_2.target_language,
-                    cfg,
-                    null,
-                    null
-                ).then((translation2) => {
-                    emitTo("screen-overlay-2", "screen-overlay-2:line", {
-                        transcription: current_detection,
-                        translation: translation2,
-                    });
+            } else if (!cfg.screen_overlay?.enabled && cfg.mode === 0 && cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
+                // Overlay 1 disabled: fall back to sending the main translation to VRChat
+                info("[TRANSLATION] Sending main translation to chatbox (overlay 1 disabled)...");
+                invoke("send_message", {
+                    address: cfg.vrchat_settings.osc_address,
+                    port: `${cfg.vrchat_settings.osc_port}`,
+                    msg: cfg.vrchat_settings.only_translation
+                        ? current_translation
+                        : cfg.vrchat_settings.translation_first
+                            ? `${current_translation} (${current_detection})`
+                            : `${current_detection} (${current_translation})`,
                 });
             }
+
+            // Overlay 2 is fed by desktopSR (desktop audio capture) — not the mic queue
 
             if (cfg.mode == 0) setTranslated(current_translation);
 
@@ -388,18 +438,6 @@ export default function Kikitan({
                 });
             }
 
-            if (cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
-                info("[TRANSLATION] Sending the message to chatbox...");
-                invoke("send_message", {
-                    address: cfg.vrchat_settings.osc_address,
-                    port: `${cfg.vrchat_settings.osc_port}`,
-                    msg: cfg.vrchat_settings.only_translation
-                        ? current_translation
-                        : cfg.vrchat_settings.translation_first
-                            ? `${current_translation} (${current_detection})`
-                            : `${current_detection} (${current_translation})`,
-                });
-            }
 
             await new Promise((r) =>
                 setTimeout(
@@ -489,8 +527,18 @@ export default function Kikitan({
         if (settingsVisible == false && srStatus) {
             restartSR();
             restartDesktopSR();
+            restartOverlay2SR();
         }
     }, [settingsVisible]);
+
+    // Restart overlay 2's mic recognizer when its settings change
+    React.useEffect(() => {
+        restartOverlay2SR();
+    }, [config.screen_overlay_2?.enabled]);
+
+    React.useEffect(() => {
+        if (sr2) restartOverlay2SR();
+    }, [config.screen_overlay_2?.source_language, config.screen_overlay_2?.target_language]);
 
     const formatTimestamp = (timestamp: number) => {
         const date = new Date(timestamp);

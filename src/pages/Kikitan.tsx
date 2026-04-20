@@ -6,6 +6,7 @@ import {
     Button,
     TextField,
     IconButton,
+    Switch,
     Tooltip,
     CircularProgress,
     Snackbar,
@@ -27,7 +28,9 @@ import {
     Close as CloseIcon,
     Mic as MicIcon,
     Translate as TranslateIcon,
-    SwapHoriz as SwapHorizIcon
+    SwapHoriz as SwapHorizIcon,
+    SportsEsports as SportsEsportsIcon,
+    Monitor as MonitorIcon,
 } from "@mui/icons-material";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -413,7 +416,7 @@ export default function Kikitan({
                 });
             }
 
-            // Overlay 2 is fed by desktopSR (desktop audio capture) — not the mic queue
+            // Overlay 2 is fed by sr2 (its own mic recognizer) — not the mic queue
 
             if (cfg.mode == 0) setTranslated(current_translation);
 
@@ -545,614 +548,280 @@ export default function Kikitan({
         return date.toLocaleTimeString();
     };
 
+    // Shared select styles
+    const selSx = {
+        color: config.light_mode ? "black" : "white",
+        "& .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "#cbd5e1" : "#475569" },
+        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "#94a3b8" : "#64748b" },
+        "& .MuiSvgIcon-root": { color: config.light_mode ? "black" : "#94A3B8" },
+    };
+    const menuSx = { sx: { "& .MuiPaper-root": { backgroundColor: config.light_mode ? "white" : "#020617" } } };
+    const menuItemSx = { color: config.light_mode ? "black" : "white" };
+    const cardCls = `rounded-2xl border p-5 ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`;
+    const labelCls = `text-xs font-medium ${config.light_mode ? "text-slate-500" : "text-slate-400"}`;
+
     return (
         <>
-            <div id="main" className="relative transition-all">
-                {/* Message History Modal */}
-                <div
-                    id="message-history"
-                    className={
-                        "transition-all z-20 w-full h-64 flex backdrop-blur-sm bg-transparent justify-center items-center absolute" +
-                        (showMessageHistory
-                            ? " opacity-100"
-                            : " opacity-0 pointer-events-none")
-                    }
-                >
-                    <div
-                        className={`flex flex-col w-10/12 h-96 outline outline-1 ${config.light_mode
-                            ? "outline-white"
-                            : "outline-slate-900"
-                            } rounded ${config.light_mode ? "bg-white" : "bg-slate-950"
-                            } p-4 overflow-hidden`}
-                    >
-                        <div className="flex justify-between items-center mb-4">
-                            <h2
-                                className={`text-xl font-bold ${config.light_mode
-                                    ? "text-black"
-                                    : "text-white"
-                                    }`}
-                            >
-                                {localization.message_history[lang]}
-                            </h2>
-                            <IconButton
-                                onClick={() => setShowMessageHistory(false)}
-                                sx={{
-                                    color: config.light_mode
-                                        ? "rgba(0, 0, 0, 0.87)"
-                                        : "#ffffff",
-                                }}
-                            >
-                                <CloseIcon />
-                            </IconButton>
-                        </div>
-
-                        <div
-                            className="overflow-y-auto flex-grow mb-4"
-                            style={{ maxHeight: "calc(100% - 4rem)" }}
-                        >
-                            {config.message_history.items.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <span
-                                        className={`text-sm italic ${config.light_mode
-                                            ? "text-gray-500"
-                                            : "text-gray-400"
-                                            }`}
-                                    >
-                                        {localization.no_history[lang]}
-                                    </span>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {config.message_history.items.map(
-                                        (item, index) => (
-                                            <div
-                                                key={index}
-                                                className={`p-3 rounded-md ${config.light_mode
-                                                    ? "bg-gray-100"
-                                                    : "bg-slate-900"
-                                                    }`}
-                                            >
-                                                <div
-                                                    className={`text-xs mb-1 ${config.light_mode
-                                                        ? "text-gray-500"
-                                                        : "text-gray-400"
-                                                        }`}
-                                                >
-                                                    {formatTimestamp(
-                                                        item.timestamp
-                                                    )}
-                                                </div>
-                                                <div
-                                                    className={`font-medium ${config.light_mode
-                                                        ? "text-black"
-                                                        : "text-white"
-                                                        }`}
-                                                >
-                                                    {item.source}
-                                                </div>
-                                                <div
-                                                    className={`mt-1 ${config.light_mode
-                                                        ? "text-gray-800"
-                                                        : "text-gray-300"
-                                                        }`}
-                                                >
-                                                    {item.translation}
-                                                </div>
-                                            </div>
-                                        )
-                                    )}
-                                </div>
-                            )}
-                        </div>
+            {/* Message History Modal */}
+            <div
+                className={
+                    "transition-all z-20 w-full h-64 flex backdrop-blur-sm bg-transparent justify-center items-center absolute" +
+                    (showMessageHistory ? " opacity-100" : " opacity-0 pointer-events-none")
+                }
+            >
+                <div className={`flex flex-col w-10/12 h-96 outline outline-1 ${config.light_mode ? "outline-white" : "outline-slate-900"} rounded-xl ${config.light_mode ? "bg-white" : "bg-slate-950"} p-4 overflow-hidden`}>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className={`text-base font-bold ${config.light_mode ? "text-black" : "text-white"}`}>
+                            {localization.message_history[lang]}
+                        </h2>
+                        <IconButton onClick={() => setShowMessageHistory(false)} sx={{ color: config.light_mode ? "rgba(0,0,0,0.87)" : "#ffffff" }}>
+                            <CloseIcon />
+                        </IconButton>
+                    </div>
+                    <div className="overflow-y-auto flex-grow mb-4" style={{ maxHeight: "calc(100% - 4rem)" }}>
+                        {config.message_history.items.length === 0 ? (
+                            <div className="flex items-center justify-center h-full">
+                                <span className={`text-sm italic ${config.light_mode ? "text-gray-500" : "text-gray-400"}`}>
+                                    {localization.no_history[lang]}
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {config.message_history.items.map((item, index) => (
+                                    <div key={index} className={`p-3 rounded-lg ${config.light_mode ? "bg-gray-100" : "bg-slate-900"}`}>
+                                        <div className={`text-xs mb-1 ${config.light_mode ? "text-gray-500" : "text-gray-400"}`}>
+                                            {formatTimestamp(item.timestamp)}
+                                        </div>
+                                        <div className={`font-medium text-sm ${config.light_mode ? "text-black" : "text-white"}`}>
+                                            {item.source}
+                                        </div>
+                                        <div className={`mt-1 text-sm ${config.light_mode ? "text-gray-700" : "text-gray-300"}`}>
+                                            {item.translation}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
+            </div>
 
-                <div
-                    className={
-                        "transition-all z-20 w-full h-64 flex bg-transparent justify-center items-center absolute" +
-                        (textInputVisible
-                            ? " opacity-100"
-                            : " opacity-0 pointer-events-none")
-                    }
-                >
-                    <div
-                        className={`flex flex-col justify-center w-7/12 h-2/6 outline outline-1 ${config.light_mode
-                            ? "outline-white"
-                            : "outline-slate-900"
-                            } rounded ${config.light_mode ? "bg-white" : "bg-slate-950"
-                            }`}
-                    >
-                        <div className="flex flex-row justify-center gap-2">
-                            <TextField
-                                slotProps={{
-                                    inputLabel: {
-                                        style: {
-                                            color: config.light_mode
-                                                ? "black"
-                                                : "#94A3B8",
-                                        },
-                                    },
-                                    htmlInput: {
-                                        style: {
-                                            color: config.light_mode
-                                                ? "black"
-                                                : "#fff",
-                                        },
-                                    },
-                                }}
-                                inputRef={textInputRef}
-                                placeholder={localization.type_here[lang]}
-                                className="mt-2 w-48"
-                                value={textInputValue}
-                                id="outlined-basic"
-                                variant="outlined"
-                                onKeyDown={(e) => {
-                                    if (e.key == "Enter") {
-                                        sr?.manual_trigger(textInputValue);
-
-                                        setTextInputVisible(false);
-                                        setTextInputValue("");
-                                    }
-                                }}
-                                onChange={(e) => {
-                                    setTextInputValue(e.target.value);
-                                }}
-                            />
-                            <Button
-                                variant="contained"
-                                className="w-12"
-                                onClick={() => {
-                                    sr?.manual_trigger(textInputValue);
-                                    setTextInputVisible(false);
-                                    setTextInputValue("");
-                                }}
-                            >
-                                {localization.send[lang]}
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                className="w-36"
-                                onClick={() => {
-                                    setTextInputVisible(false);
-                                    setTextInputValue("");
-                                }}
-                            >
-                                {localization.close_menu[lang]}
-                            </Button>
-                        </div>
+            {/* Text Input Modal */}
+            <div className={"transition-all z-20 w-full h-64 flex bg-transparent justify-center items-center absolute" + (textInputVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
+                <div className={`flex flex-col justify-center w-7/12 h-2/6 outline outline-1 ${config.light_mode ? "outline-slate-200" : "outline-slate-800"} rounded-xl ${config.light_mode ? "bg-white" : "bg-slate-950"}`}>
+                    <div className="flex flex-row justify-center gap-2 px-4">
+                        <TextField
+                            slotProps={{ inputLabel: { style: { color: config.light_mode ? "black" : "#94A3B8" } }, htmlInput: { style: { color: config.light_mode ? "black" : "#fff" } } }}
+                            inputRef={textInputRef}
+                            placeholder={localization.type_here[lang]}
+                            className="mt-2 w-48"
+                            value={textInputValue}
+                            id="outlined-basic"
+                            variant="outlined"
+                            onKeyDown={(e) => { if (e.key == "Enter") { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); } }}
+                            onChange={(e) => setTextInputValue(e.target.value)}
+                        />
+                        <Button variant="contained" onClick={() => { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); }}>
+                            {localization.send[lang]}
+                        </Button>
+                        <Button variant="contained" color="error" onClick={() => { setTextInputVisible(false); setTextInputValue(""); }}>
+                            {localization.close_menu[lang]}
+                        </Button>
                     </div>
                 </div>
+            </div>
 
-                <div id="main-boxes" className="z-10 flex align-middle">
-                    <div>
-                        <div
-                            className={`mr-16 w-96 h-48 outline outline-1 transition-all rounded-md font-bold text-center ${detecting
-                                ? "italic " + config.light_mode
-                                    ? "text-slate-400 outline-slate-800"
-                                    : "text-slate-200 outline-slate-400"
-                                : config.light_mode
-                                    ? "text-black"
-                                    : "text-slate-200"
-                                } ${srStatus ? "" : "bg-gray-400"}`}
-                        >
-                            <p className="align-middle">{detection}</p>
+            {/* Main layout */}
+            <div id="main" className="relative z-10 flex flex-col gap-4 w-full" style={{ maxWidth: 860 }}>
+
+                {/* ── VRChat Chatbox Card ── */}
+                <div className={cardCls}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <SportsEsportsIcon fontSize="small" className="opacity-60" />
+                            <span className="font-bold text-sm tracking-wide">VRChat Chatbox</span>
                         </div>
-                        <div className="flex">
-                            <Select
-                                sx={{
-                                    color: config.light_mode
-                                        ? "black"
-                                        : "white",
-                                    textAlign: "right",
-                                    "& .MuiOutlinedInput-notchedOutline": {
-                                        borderColor: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                    "&:hover .MuiOutlinedInput-notchedOutline":
-                                    {
-                                        borderColor: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                    "& .MuiSvgIcon-root": {
-                                        color: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                    "&.Mui-disabled": {
-                                        color: config.light_mode
-                                            ? "black"
-                                            : "white",
-                                        "& .MuiOutlinedInput-notchedOutline": {
-                                            borderColor: config.light_mode
-                                                ? "black"
-                                                : "#94A3B8",
-                                        },
-                                        "&:hover .MuiOutlinedInput-notchedOutline":
-                                        {
-                                            borderColor: config.light_mode
-                                                ? "black"
-                                                : "#94A3B8",
-                                        },
-                                        "& .MuiSvgIcon-root": {
-                                            color: config.light_mode
-                                                ? "black"
-                                                : "#94A3B8",
-                                        },
-                                    },
-                                }}
-                                MenuProps={{
-                                    sx: {
-                                        "& .MuiPaper-root": {
-                                            backgroundColor: config.light_mode
-                                                ? "#94A3B8"
-                                                : "#020617",
-                                        },
-                                    },
-                                }}
-                                className="mt-4 ml-auto h-14"
-                                value={sourceLanguage}
-                                onChange={(e) => {
-                                    setSourceLanguage(e.target.value);
-                                    setLanguageUpdate(true);
+                        <Switch
+                            size="small"
+                            checked={config.vrchat_settings.enable_chatbox}
+                            onChange={(e) => setConfig({ ...config, vrchat_settings: { ...config.vrchat_settings, enable_chatbox: e.target.checked } })}
+                        />
+                    </div>
 
-                                    setConfig({
-                                        ...config,
-                                        source_language: e.target.value,
-                                    });
-                                }}
-                            >
-                                {langSource.map((element) => {
-                                    return (
-                                        <MenuItem
-                                            sx={{
-                                                color: config.light_mode
-                                                    ? "black"
-                                                    : "white",
-                                            }}
-                                            key={element.code}
-                                            value={element.code}
-                                        >
-                                            {element.name[lang]}
-                                        </MenuItem>
-                                    );
-                                })}
-                            </Select>
-                            <div className="mt-7">
-                                <MicIcon className="ml-3" />
-                                <Button
-                                    disabled={languageUpdate}
-                                    onClick={() => {
-                                        const new_t = sourceLanguage;
-                                        const new_s = targetLanguage;
+                    {/* Language pair */}
+                    <div className="flex items-center gap-2 mb-4">
+                        <Select
+                            size="small"
+                            value={sourceLanguage}
+                            onChange={(e) => { setSourceLanguage(e.target.value); setLanguageUpdate(true); setConfig({ ...config, source_language: e.target.value }); }}
+                            sx={selSx}
+                            MenuProps={menuSx}
+                        >
+                            {langSource.map((el) => <MenuItem key={el.code} value={el.code} sx={menuItemSx}>{el.name[lang]}</MenuItem>)}
+                        </Select>
+                        <IconButton
+                            size="small"
+                            disabled={languageUpdate}
+                            onClick={() => {
+                                const newT = sourceLanguage;
+                                const newS = targetLanguage;
+                                setTargetLanguage(newT);
+                                setSourceLanguage(newS);
+                                setLanguageUpdate(true);
+                                setConfig({ ...config, source_language: newS, target_language: newT });
+                            }}
+                        >
+                            <SwapHorizIcon fontSize="small" />
+                        </IconButton>
+                        <Select
+                            size="small"
+                            value={targetLanguage}
+                            onChange={(e) => { setTargetLanguage(e.target.value); setLanguageUpdate(true); setConfig({ ...config, target_language: e.target.value }); }}
+                            sx={selSx}
+                            MenuProps={menuSx}
+                        >
+                            {langTo.map((el) => <MenuItem key={el.code} value={el.code} sx={menuItemSx}>{el.name[lang]}</MenuItem>)}
+                        </Select>
+                    </div>
 
-                                        setTargetLanguage(new_t);
-                                        setSourceLanguage(new_s);
-                                        setLanguageUpdate(true);
-
-                                        setConfig({
-                                            ...config,
-                                            source_language: new_s,
-                                            target_language: new_t,
-                                        });
-                                    }}
-                                > <SwapHorizIcon /> </Button>
+                    {/* Display boxes */}
+                    <div className="flex gap-3 mb-4">
+                        <div className="flex-1 flex flex-col gap-1">
+                            <span className={`${labelCls} flex items-center gap-1`}>
+                                <MicIcon sx={{ fontSize: 11 }} /> Transcription
+                            </span>
+                            <div className={`rounded-lg border px-3 py-2 min-h-16 text-sm font-medium transition-all ${detecting ? "italic opacity-60" : ""} ${!srStatus ? config.light_mode ? "bg-slate-100" : "bg-slate-800" : ""} ${config.light_mode ? "border-slate-200 text-slate-800" : "border-slate-700 text-slate-200"}`}>
+                                {detection}
                             </div>
                         </div>
-                    </div>
-                    <div>
-                        <div className={`w-96 h-48 outline outline-1 transition-all rounded-md ${config.light_mode
-                            ? "text-black outline-slate-800"
-                            : "text-slate-200 outline-slate-400"
-                            } font-bold text-center ${srStatus ? "" : "bg-gray-400"
-                            }`}>
-                            <p className={`transition-all duration-300 align-middle`} >
+                        <div className="flex-1 flex flex-col gap-1">
+                            <span className={`${labelCls} flex items-center gap-1`}>
+                                <TranslateIcon sx={{ fontSize: 11 }} /> Translation
+                            </span>
+                            <div className={`rounded-lg border px-3 py-2 min-h-16 text-sm font-medium transition-all ${!srStatus ? config.light_mode ? "bg-slate-100" : "bg-slate-800" : ""} ${config.light_mode ? "border-slate-200 text-slate-800" : "border-slate-700 text-slate-200"}`}>
                                 {translated}
-                            </p>
-                        </div>
-                        <div>
-                            <TranslateIcon className="mr-3" />
-                            <Select
-                                sx={{
-                                    color: config.light_mode
-                                        ? "black"
-                                        : "white",
-                                    "& .MuiOutlinedInput-notchedOutline": {
-                                        borderColor: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                    "&:hover .MuiOutlinedInput-notchedOutline":
-                                    {
-                                        borderColor: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                    "& .MuiSvgIcon-root": {
-                                        color: config.light_mode
-                                            ? "black"
-                                            : "#94A3B8",
-                                    },
-                                }}
-                                MenuProps={{
-                                    sx: {
-                                        "& .MuiPaper-root": {
-                                            backgroundColor: config.light_mode
-                                                ? "#94A3B8"
-                                                : "#020617",
-                                        },
-                                    },
-                                }}
-                                className="mt-4"
-                                value={targetLanguage}
-                                onChange={(e) => {
-                                    setTargetLanguage(e.target.value);
-                                    setLanguageUpdate(true);
-
-                                    setConfig({
-                                        ...config,
-                                        target_language: e.target.value,
-                                    });
-                                }}
-                            >
-                                {langTo.map((element) => {
-                                    return (
-                                        <MenuItem
-                                            sx={{
-                                                color: config.light_mode
-                                                    ? "black"
-                                                    : "white",
-                                            }}
-                                            key={element.code}
-                                            value={element.code}
-                                        >
-                                            {element.name[lang]}
-                                        </MenuItem>
-                                    );
-                                })}
-                            </Select>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            {/* Overlay controls */}
-            <div className="mt-4 flex gap-4">
-                {([
-                    { label: "Overlay 1", key: "screen_overlay" as const },
-                    { label: "Overlay 2", key: "screen_overlay_2" as const },
-                ] as const).map(({ label, key }) => {
-                    const ov = config[key];
-                    const selSx = {
-                        color: config.light_mode ? "black" : "white",
-                        "& .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "black" : "#94A3B8" },
-                        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "black" : "#94A3B8" },
-                        "& .MuiSvgIcon-root": { color: config.light_mode ? "black" : "#94A3B8" },
-                    };
-                    const menuSx = { sx: { "& .MuiPaper-root": { backgroundColor: config.light_mode ? "#94A3B8" : "#020617" } } };
-                    return (
-                        <div key={key} className={`flex flex-col gap-2 p-3 rounded-md outline outline-1 ${config.light_mode ? "outline-slate-400 text-black" : "outline-slate-600 text-slate-200"}`}>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={ov.enabled}
-                                    onChange={(e) => setConfig({ ...config, [key]: { ...ov, enabled: e.target.checked } })}
-                                    className="w-4 h-4 cursor-pointer"
-                                />
-                                <span className="font-semibold text-sm">{label}</span>
-                                <Select size="small" value={ov.corner} onChange={(e) => setConfig({ ...config, [key]: { ...ov, corner: e.target.value as typeof ov.corner } })} sx={{ ...selSx, fontSize: 12 }} MenuProps={menuSx}>
-                                    <MenuItem value="top-left" sx={{ color: config.light_mode ? "black" : "white" }}>↖ Top Left</MenuItem>
-                                    <MenuItem value="top-right" sx={{ color: config.light_mode ? "black" : "white" }}>↗ Top Right</MenuItem>
-                                    <MenuItem value="bottom-left" sx={{ color: config.light_mode ? "black" : "white" }}>↙ Bot Left</MenuItem>
-                                    <MenuItem value="bottom-right" sx={{ color: config.light_mode ? "black" : "white" }}>↘ Bot Right</MenuItem>
-                                </Select>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Select size="small" value={ov.source_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, source_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
-                                    {langSource.map((l) => <MenuItem key={l.code} value={l.code} sx={{ color: config.light_mode ? "black" : "white" }}>{l.name[lang]}</MenuItem>)}
-                                </Select>
-                                <Button size="small" onClick={() => setConfig({ ...config, [key]: { ...ov, source_language: ov.target_language, target_language: ov.source_language } })}>
-                                    <SwapHorizIcon fontSize="small" />
-                                </Button>
-                                <Select size="small" value={ov.target_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, target_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
-                                    {langTo.map((l) => <MenuItem key={l.code} value={l.code} sx={{ color: config.light_mode ? "black" : "white" }}>{l.name[lang]}</MenuItem>)}
-                                </Select>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
 
-            <div id="buttons" className="mt-2 mb-2 flex gap-2">
-                <Button
-                    variant="outlined"
-                    size="medium"
-                    disabled={!srStatus}
-                    onClick={() => {
-                        if (!textInputVisible) {
-                            textInputRef.current?.focus();
-                            textInputRef.current?.select();
-                        }
-                        setTextInputVisible(!textInputVisible);
-                    }}
-                >
-                    <p>{localization.text[lang]}</p>{" "}
-                    {<Keyboard className="ml-2" fontSize="small" />}
-                </Button>
-                <Button
-                    variant="outlined"
-                    size="medium"
-                    color={srStatus ? !srLoading ? "error" : "inherit" : "success"}
-                    disabled={srLoading}
-                    sx={{
-                        '&.Mui-disabled': {
-                            borderColor: config.light_mode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(148, 163, 184, 0.5)',
-                            color: config.light_mode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(148, 163, 184, 0.5)',
-                        },
-                    }}
-                    onClick={() => {
-                        invoke("send_disable_mic", {
-                            data: !srStatus,
-                            address: config.vrchat_settings.osc_address,
-                            port: `${config.vrchat_settings.osc_port}`,
-                        });
-
-                        setSRStatus(!srStatus);
-                    }}
-                >
-                    <p>
-                        {!srStatus ? localization.start[lang] : !srLoading ? localization.stop[lang] : ""}
-                    </p>
-                    {srStatus ? !srLoading ? (<PauseIcon fontSize="small" />) : (<CircularProgress color="inherit" size={16} />) : (<PlayArrowIcon fontSize="small" />)}
-                </Button>
-                {config.message_history.enabled && (
-                    <Tooltip title={localization.message_history[lang]}>
+                    {/* Controls */}
+                    <div className="flex gap-2">
                         <Button
                             variant="outlined"
-                            size="medium"
-                            onClick={() => setShowMessageHistory(true)}
+                            size="small"
+                            disabled={!srStatus}
+                            onClick={() => { if (!textInputVisible) { textInputRef.current?.focus(); textInputRef.current?.select(); } setTextInputVisible(!textInputVisible); }}
                         >
-                            <HistoryIcon fontSize="small" />
+                            {localization.text[lang]} <Keyboard className="ml-1" sx={{ fontSize: 16 }} />
                         </Button>
-                    </Tooltip>
-                )}
-            </div>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            color={srStatus ? !srLoading ? "error" : "inherit" : "success"}
+                            disabled={srLoading}
+                            sx={{ '&.Mui-disabled': { borderColor: config.light_mode ? 'rgba(0,0,0,0.4)' : 'rgba(148,163,184,0.5)', color: config.light_mode ? 'rgba(0,0,0,0.4)' : 'rgba(148,163,184,0.5)' } }}
+                            onClick={() => { invoke("send_disable_mic", { data: !srStatus, address: config.vrchat_settings.osc_address, port: `${config.vrchat_settings.osc_port}` }); setSRStatus(!srStatus); }}
+                        >
+                            {!srStatus ? localization.start[lang] : !srLoading ? localization.stop[lang] : ""}
+                            {srStatus ? !srLoading ? <PauseIcon sx={{ fontSize: 16 }} /> : <CircularProgress color="inherit" size={14} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
+                        </Button>
+                        {config.message_history.enabled && (
+                            <Tooltip title={localization.message_history[lang]}>
+                                <Button variant="outlined" size="small" onClick={() => setShowMessageHistory(true)}>
+                                    <HistoryIcon sx={{ fontSize: 16 }} />
+                                </Button>
+                            </Tooltip>
+                        )}
+                    </div>
+                </div>
 
-            <div id="social-links" className="align-middle">
-                <div id="default-mic" className="justify-center flex mb-2 ml-2">
-                    <KeyboardVoiceIcon fontSize="small" className="mt-3" />
-                    <Select
-                        sx={{
-                            color: config.light_mode
-                                ? "black"
-                                : "white",
-                            "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: config.light_mode
-                                    ? "black"
-                                    : "#94A3B8",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline":
-                            {
-                                borderColor: config.light_mode
-                                    ? "black"
-                                    : "#94A3B8",
-                            },
-                            "& .MuiSvgIcon-root": {
-                                color: config.light_mode
-                                    ? "black"
-                                    : "#94A3B8",
-                            },
-                            "&.Mui-disabled": {
-                                color: config.light_mode
-                                    ? "black"
-                                    : "white",
-                                "& .MuiOutlinedInput-notchedOutline": {
-                                    borderColor: config.light_mode
-                                        ? "black"
-                                        : "#94A3B8",
-                                },
-                                "&:hover .MuiOutlinedInput-notchedOutline":
-                                {
-                                    borderColor: config.light_mode
-                                        ? "black"
-                                        : "#94A3B8",
-                                },
-                                "& .MuiSvgIcon-root": {
-                                    color: config.light_mode
-                                        ? "black"
-                                        : "#94A3B8",
-                                },
-                            },
-                        }}
-                        MenuProps={{
-                            sx: {
-                                "& .MuiPaper-root": {
-                                    backgroundColor: config.light_mode
-                                        ? "#94A3B8"
-                                        : "#020617",
-                                },
-                            },
-                        }}
-                        className="ml-4 h-12 w-52"
-                        value={config.microphone}
-                        onChange={(e) => {
-                            setConfig({
-                                ...config,
-                                microphone: e.target.value as string
-                            })
-
-                            setTimeout(() => {
-                                restartSR();
-                            }, 250)
-                        }}
-                    >
-                        {microphones.map((element) => {
+                {/* ── Screen Overlays ── */}
+                <div>
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                        <MonitorIcon sx={{ fontSize: 14 }} className="opacity-50" />
+                        <span className={`text-xs font-semibold tracking-widest uppercase ${config.light_mode ? "text-slate-500" : "text-slate-400"}`}>
+                            Screen Overlays
+                        </span>
+                    </div>
+                    <div className="flex gap-3">
+                        {([
+                            { label: "Overlay 1", key: "screen_overlay" as const, note: "→ VRChat" },
+                            { label: "Overlay 2", key: "screen_overlay_2" as const, note: "" },
+                        ] as const).map(({ label, key, note }) => {
+                            const ov = config[key];
                             return (
-                                <MenuItem
-                                    sx={{
-                                        color: config.light_mode
-                                            ? "black"
-                                            : "white",
-                                    }}
-                                    key={element.name}
-                                    value={element.name}
-                                >
-                                    {(element.name.includes("(") && element.name.includes(")")) ? element.name.match(/\(([^)]+)\)/)?.[1] : element.name}
-                                </MenuItem>
+                                <div key={key} className={`flex-1 rounded-2xl border p-4 transition-opacity ${ov.enabled ? "" : "opacity-50"} ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm">{label}</span>
+                                            {note && <span className={`text-xs px-1.5 py-0.5 rounded ${config.light_mode ? "bg-slate-100 text-slate-500" : "bg-slate-800 text-slate-400"}`}>{note}</span>}
+                                        </div>
+                                        <Switch
+                                            size="small"
+                                            checked={ov.enabled}
+                                            onChange={(e) => setConfig({ ...config, [key]: { ...ov, enabled: e.target.checked } })}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-1 mb-2">
+                                        <Select size="small" value={ov.source_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, source_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
+                                            {langSource.map((l) => <MenuItem key={l.code} value={l.code} sx={menuItemSx}>{l.name[lang]}</MenuItem>)}
+                                        </Select>
+                                        <IconButton size="small" onClick={() => setConfig({ ...config, [key]: { ...ov, source_language: ov.target_language, target_language: ov.source_language } })}>
+                                            <SwapHorizIcon fontSize="small" />
+                                        </IconButton>
+                                        <Select size="small" value={ov.target_language} onChange={(e) => setConfig({ ...config, [key]: { ...ov, target_language: e.target.value } })} sx={selSx} MenuProps={menuSx}>
+                                            {langTo.map((l) => <MenuItem key={l.code} value={l.code} sx={menuItemSx}>{l.name[lang]}</MenuItem>)}
+                                        </Select>
+                                    </div>
+                                    <Select size="small" fullWidth value={ov.corner} onChange={(e) => setConfig({ ...config, [key]: { ...ov, corner: e.target.value as typeof ov.corner } })} sx={selSx} MenuProps={menuSx}>
+                                        <MenuItem value="top-left" sx={menuItemSx}>↖ Top Left</MenuItem>
+                                        <MenuItem value="top-right" sx={menuItemSx}>↗ Top Right</MenuItem>
+                                        <MenuItem value="bottom-left" sx={menuItemSx}>↙ Bottom Left</MenuItem>
+                                        <MenuItem value="bottom-right" sx={menuItemSx}>↘ Bottom Right</MenuItem>
+                                    </Select>
+                                </div>
                             );
                         })}
-                    </Select>
+                    </div>
                 </div>
-                <div className="mt-2 flex space-x-2 justify-center">
-                    <Button
-                        variant="contained"
-                        size="small"
-                        className="h-8"
-                        onClick={() => {
-                            open("https://twitter.com/marquina_osu");
-                        }}
-                    >
-                        <XIcon fontSize="small" />
-                    </Button>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        className="h-8"
-                        onClick={() => {
-                            open("https://buymeacoffee.com/sergiomarquina");
-                        }}
-                    >
-                        <FavoriteIcon fontSize="small" />
-                    </Button>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        className="h-8"
-                        onClick={() => {
-                            open(
-                                "https://github.com/YusufOzmen01/kikitan-translator"
-                            );
-                        }}
-                    >
-                        <GitHubIcon fontSize="small" />
-                    </Button>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        className="h-8"
-                        onClick={() => {
-                            open("https://discord.gg/jpkYCgpBGV");
-                        }}
-                    >
-                        <img
-                            src="/discordlogo.webp"
-                            className="invert"
-                            width={18}
-                        />
-                    </Button>
+
+                {/* ── Microphone + Social ── */}
+                <div className="flex items-center justify-between pb-2">
+                    <div className="flex items-center gap-2">
+                        <KeyboardVoiceIcon fontSize="small" className="opacity-50" />
+                        <Select
+                            size="small"
+                            value={config.microphone}
+                            onChange={(e) => { setConfig({ ...config, microphone: e.target.value as string }); setTimeout(() => restartSR(), 250); }}
+                            sx={selSx}
+                            MenuProps={menuSx}
+                            className="w-52"
+                        >
+                            {microphones.map((element) => (
+                                <MenuItem key={element.name} value={element.name} sx={menuItemSx}>
+                                    {(element.name.includes("(") && element.name.includes(")")) ? element.name.match(/\(([^)]+)\)/)?.[1] : element.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="contained" size="small" onClick={() => open("https://twitter.com/marquina_osu")}>
+                            <XIcon fontSize="small" />
+                        </Button>
+                        <Button variant="contained" size="small" onClick={() => open("https://buymeacoffee.com/sergiomarquina")}>
+                            <FavoriteIcon fontSize="small" />
+                        </Button>
+                        <Button variant="contained" size="small" onClick={() => open("https://github.com/YusufOzmen01/kikitan-translator")}>
+                            <GitHubIcon fontSize="small" />
+                        </Button>
+                        <Button variant="contained" size="small" onClick={() => open("https://discord.gg/jpkYCgpBGV")}>
+                            <img src="/discordlogo.webp" className="invert" width={18} />
+                        </Button>
+                    </div>
                 </div>
             </div>
+
             <Snackbar
                 open={notification.open}
                 autoHideDuration={5000}
@@ -1160,12 +829,7 @@ export default function Kikitan({
                 anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                 TransitionComponent={Slide}
             >
-                <Alert
-                    onClose={() => setNotification(prev => ({ ...prev, open: false }))}
-                    severity={notification.severity}
-                    variant="filled"
-                    sx={{ width: "100%" }}
-                >
+                <Alert onClose={() => setNotification(prev => ({ ...prev, open: false }))} severity={notification.severity} variant="filled" sx={{ width: "100%" }}>
                     {notification.message}
                 </Alert>
             </Snackbar>

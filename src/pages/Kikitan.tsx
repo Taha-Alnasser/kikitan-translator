@@ -31,6 +31,7 @@ import {
     SwapHoriz as SwapHorizIcon,
     SportsEsports as SportsEsportsIcon,
     Monitor as MonitorIcon,
+    RestartAlt as RestartAltIcon,
 } from "@mui/icons-material";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -45,6 +46,7 @@ import {
 } from "../util/constants";
 
 import { Config, load_config, MessageHistoryItem } from "../util/config";
+import { performTranslation } from "../util/translate";
 import { Recognizer } from "../recognizers/recognizer";
 import { EdgeSTT } from "../recognizers/EdgeSTT";
 
@@ -67,14 +69,17 @@ type KikitanProps = {
     vrchatRunning: boolean;
 };
 
-// Three independent recognizers: main (VRChat), overlay 1, overlay 2
+// Single shared mic recognizer — running multiple simultaneous captures on the
+// same mic fights over the global start/stop_microphone_audio_capture invoke.
 let sr: Recognizer | null = null;
-let sr1: Recognizer | null = null;
-let sr2: Recognizer | null = null;
 let desktopSR: Recognizer | null = null;
 let detectionQueue: string[][] = [];
 let lock = false;
 let restartTimeout: NodeJS.Timeout | null = null;
+
+// Dedup: EdgeSTT sometimes fires speech.phrase twice for the same utterance.
+let lastQueuedText = "";
+let lastQueuedTime = 0;
 
 export default function Kikitan({
     config,
@@ -93,7 +98,7 @@ export default function Kikitan({
     const [translated, setTranslated] = React.useState("");
     const [desktopResult, setDesktopResult] = React.useState("");
 
-    // Live display state for overlay 1 and overlay 2
+    // Overlay 1 and 2 display (derived from sr's transcription in queue processor)
     const [ov1Detection, setOv1Detection] = React.useState("");
     const [ov1Translation, setOv1Translation] = React.useState("");
     const [ov2Detection, setOv2Detection] = React.useState("");
@@ -152,10 +157,12 @@ export default function Kikitan({
 
     const restartSR = () => {
         sr?.stop();
-        info(`[SR] Initializing main SR...`);
+        info(`[SR] Restarting with ${sourceLanguage} → ${targetLanguage}`);
+
         if ((config.translator_settings.translation_service == 2 || config.translator_settings.recognition_service == 1) && config.groq.api_key.length == 0) {
             showNotification(localization.no_api_key_configured_for_groq[lang], "warning");
         }
+
         switch (config.translator_settings.recognition_service) {
             case 0:
                 sr = new EdgeSTT(sourceLanguage, targetLanguage, false, config.mode == 1, setSRLoading, showNotification, setConfig);
@@ -167,12 +174,15 @@ export default function Kikitan({
                 sr = new WebSpeech(sourceLanguage, targetLanguage, config.mode == 1, setSRLoading, showNotification, setConfig);
                 break;
             default:
+                error(`[SR] Unknown recognizer: ${config.translator_settings.recognition_service}`);
                 return;
         }
+
         sr.onResult((result: string[], isFinal: boolean) => {
             setDetecting(!isFinal);
             setResult(result);
         });
+
         sr?.start();
     };
 
@@ -184,78 +194,6 @@ export default function Kikitan({
             desktopSR?.stop();
             desktopSR = null;
         }
-    };
-
-    // Overlay 1 has its own independent recognizer
-    const restartOverlay1SR = () => {
-        sr1?.stop();
-        sr1 = null;
-        const cfg = load_config();
-        if (!cfg.screen_overlay?.enabled) return;
-        const ov1 = cfg.screen_overlay;
-        switch (cfg.translator_settings.recognition_service) {
-            case 0:
-                sr1 = new EdgeSTT(ov1.source_language, ov1.target_language, false, false, null, showNotification, setConfig);
-                info(`[SR1] Using EdgeSTT (${ov1.source_language} → ${ov1.target_language})`);
-                break;
-            case 1:
-                sr1 = new VAD(ov1.source_language, ov1.target_language, false, false, null, showNotification, setConfig);
-                info(`[SR1] Using Groq (${ov1.source_language} → ${ov1.target_language})`);
-                break;
-            case 2:
-                sr1 = new WebSpeech(ov1.source_language, ov1.target_language, false, null, showNotification, setConfig);
-                info(`[SR1] Using WebSpeech (${ov1.source_language} → ${ov1.target_language})`);
-                break;
-            default:
-                return;
-        }
-        sr1.onResult((result: string[], isFinal: boolean) => {
-            setOv1Detection(result[0]);
-            if (isFinal && configRef.current.screen_overlay?.enabled) {
-                setOv1Translation(result[1]);
-                emitTo("screen-overlay", "screen-overlay:line", {
-                    transcription: result[0],
-                    translation: result[1],
-                });
-            }
-        });
-        sr1.start();
-    };
-
-    // Overlay 2 has its own independent recognizer
-    const restartOverlay2SR = () => {
-        sr2?.stop();
-        sr2 = null;
-        const cfg = load_config();
-        if (!cfg.screen_overlay_2?.enabled) return;
-        const ov2 = cfg.screen_overlay_2;
-        switch (cfg.translator_settings.recognition_service) {
-            case 0:
-                sr2 = new EdgeSTT(ov2.source_language, ov2.target_language, false, false, null, showNotification, setConfig);
-                info(`[SR2] Using EdgeSTT (${ov2.source_language} → ${ov2.target_language})`);
-                break;
-            case 1:
-                sr2 = new VAD(ov2.source_language, ov2.target_language, false, false, null, showNotification, setConfig);
-                info(`[SR2] Using Groq (${ov2.source_language} → ${ov2.target_language})`);
-                break;
-            case 2:
-                sr2 = new WebSpeech(ov2.source_language, ov2.target_language, false, null, showNotification, setConfig);
-                info(`[SR2] Using WebSpeech (${ov2.source_language} → ${ov2.target_language})`);
-                break;
-            default:
-                return;
-        }
-        sr2.onResult((result: string[], isFinal: boolean) => {
-            setOv2Detection(result[0]);
-            if (isFinal && configRef.current.screen_overlay_2?.enabled) {
-                setOv2Translation(result[1]);
-                emitTo("screen-overlay-2", "screen-overlay-2:line", {
-                    transcription: result[0],
-                    translation: result[1],
-                });
-            }
-        });
-        sr2.start();
     };
 
     React.useEffect(() => {
@@ -280,6 +218,10 @@ export default function Kikitan({
         if (vrcMuted && !startedSpeaking && config.vrchat_settings.disable_kikitan_when_muted) return;
 
         setDetection(result[0]);
+        // Mirror intermediate transcription to overlay displays while user is speaking
+        if (config.screen_overlay?.enabled) setOv1Detection(result[0]);
+        if (config.screen_overlay_2?.enabled) setOv2Detection(result[0]);
+
         setStartedSpeaking(detecting);
 
         if ((config.mode == 1 || config.vrchat_settings.send_typing_status_while_talking) && config.vrchat_settings.enable_chatbox) {
@@ -302,15 +244,22 @@ export default function Kikitan({
             });
         }
 
-        // Only queue for VRChat chatbox (mode 0 with translation)
+        // Only queue final results (mode 0), with dedup to prevent EdgeSTT double-fire
         if (config.mode === 0 && !detecting && result.length != 0 && result[1].length != 0) {
-            detectionQueue = [...detectionQueue, result];
-            info(`[QUEUE] Updated queue length: ${detectionQueue.length}`);
+            const now = Date.now();
+            if (result[0] !== lastQueuedText || now - lastQueuedTime > 5000) {
+                lastQueuedText = result[0];
+                lastQueuedTime = now;
+                detectionQueue = [...detectionQueue, result];
+                info(`[QUEUE] Enqueued "${result[0].slice(0, 30)}..." length=${detectionQueue.length}`);
+            } else {
+                info(`[QUEUE] Deduplicated "${result[0].slice(0, 30)}..."`);
+            }
         }
     }, [result, detecting]);
 
     React.useEffect(() => {
-        info(`[SR] SR status=${srStatus}`);
+        info(`[SR] status=${srStatus}`);
         if (sr == null) {
             warn("[SR] SR is null, ignoring status change");
             return;
@@ -318,13 +267,9 @@ export default function Kikitan({
         if (srStatus) {
             sr.start();
             desktopSR?.start();
-            sr1?.start();
-            sr2?.start();
         } else {
             sr.stop();
             desktopSR?.stop();
-            sr1?.stop();
-            sr2?.stop();
         }
     }, [srStatus]);
 
@@ -336,13 +281,15 @@ export default function Kikitan({
             detectionQueue = detectionQueue.slice(1);
             lock = true;
 
+            // Always read latest config to avoid stale closure
             const cfg = configRef.current;
             const current_detection = current[0];
             const current_translation = current[1];
 
-            // VRChat chatbox only — overlays are fed by their own recognizers
-            if (cfg.mode === 0 && cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
-                info("[TRANSLATION] Sending to VRChat chatbox...");
+            info(`[QUEUE] Processing "${current_detection.slice(0, 30)}..." remaining=${detectionQueue.length}`);
+
+            // VRChat chatbox (uses main sr's translation)
+            if (cfg.vrchat_settings.enable_chatbox && current_translation.length > 0) {
                 invoke("send_message", {
                     address: cfg.vrchat_settings.osc_address,
                     port: `${cfg.vrchat_settings.osc_port}`,
@@ -354,7 +301,44 @@ export default function Kikitan({
                 });
             }
 
-            if (cfg.mode == 0) setTranslated(current_translation);
+            // Overlay 1 — translate sr's transcription with overlay 1's language pair.
+            // Runs concurrently (no await) so it doesn't block the queue lock.
+            if (cfg.screen_overlay?.enabled) {
+                setOv1Detection(current_detection);
+                performTranslation(
+                    current_detection,
+                    cfg.screen_overlay.source_language,
+                    cfg.screen_overlay.target_language,
+                    cfg, null, null
+                ).then((t) => {
+                    const translation = t ?? "";
+                    setOv1Translation(translation);
+                    emitTo("screen-overlay", "screen-overlay:line", {
+                        transcription: current_detection,
+                        translation,
+                    });
+                });
+            }
+
+            // Overlay 2 — same pattern
+            if (cfg.screen_overlay_2?.enabled) {
+                setOv2Detection(current_detection);
+                performTranslation(
+                    current_detection,
+                    cfg.screen_overlay_2.source_language,
+                    cfg.screen_overlay_2.target_language,
+                    cfg, null, null
+                ).then((t) => {
+                    const translation = t ?? "";
+                    setOv2Translation(translation);
+                    emitTo("screen-overlay-2", "screen-overlay-2:line", {
+                        transcription: current_detection,
+                        translation,
+                    });
+                });
+            }
+
+            setTranslated(current_translation);
 
             if (cfg.message_history.enabled) {
                 const newHistoryItem: MessageHistoryItem = {
@@ -366,6 +350,7 @@ export default function Kikitan({
                 setConfig({ ...cfg, message_history: { ...cfg.message_history, items: updatedItems } });
             }
 
+            // Rate-limit only for VRChat chatbox
             await new Promise((r) => setTimeout(r, calculateMinWaitTime(current_translation, cfg.vrchat_settings.chatbox_update_speed)));
             lock = false;
         })();
@@ -410,20 +395,8 @@ export default function Kikitan({
         if (settingsVisible == false && srStatus) {
             restartSR();
             restartDesktopSR();
-            restartOverlay1SR();
-            restartOverlay2SR();
         }
     }, [settingsVisible]);
-
-    React.useEffect(() => { restartOverlay1SR(); }, [config.screen_overlay?.enabled]);
-    React.useEffect(() => {
-        if (sr1) restartOverlay1SR();
-    }, [config.screen_overlay?.source_language, config.screen_overlay?.target_language]);
-
-    React.useEffect(() => { restartOverlay2SR(); }, [config.screen_overlay_2?.enabled]);
-    React.useEffect(() => {
-        if (sr2) restartOverlay2SR();
-    }, [config.screen_overlay_2?.source_language, config.screen_overlay_2?.target_language]);
 
     const formatTimestamp = (timestamp: number) => new Date(timestamp).toLocaleTimeString();
 
@@ -437,7 +410,8 @@ export default function Kikitan({
     const menuItemSx = { color: config.light_mode ? "black" : "white" };
     const cardCls = `rounded-2xl border p-4 ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`;
     const labelCls = `text-xs font-medium ${config.light_mode ? "text-slate-500" : "text-slate-400"}`;
-    const boxCls = (detecting_: boolean) => `rounded-lg border px-3 py-2 h-12 text-sm font-medium overflow-hidden transition-all ${detecting_ ? "italic opacity-60" : ""} ${config.light_mode ? "border-slate-200 text-slate-800" : "border-slate-700 text-slate-200"}`;
+    const boxCls = (dim: boolean) =>
+        `rounded-lg border px-3 py-2 h-12 text-sm font-medium overflow-hidden transition-all ${dim ? "italic opacity-60" : ""} ${config.light_mode ? "border-slate-200 text-slate-800" : "border-slate-700 text-slate-200"}`;
 
     return (
         <>
@@ -545,6 +519,11 @@ export default function Kikitan({
                             {!srStatus ? localization.start[lang] : !srLoading ? localization.stop[lang] : ""}
                             {srStatus ? !srLoading ? <PauseIcon sx={{ fontSize: 16 }} /> : <CircularProgress color="inherit" size={14} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
                         </Button>
+                        <Tooltip title="Restart recognizer (use this after changing language)">
+                            <Button variant="outlined" size="small" onClick={() => restartSR()}>
+                                <RestartAltIcon sx={{ fontSize: 16 }} />
+                            </Button>
+                        </Tooltip>
                         {config.message_history.enabled && (
                             <Tooltip title={localization.message_history[lang]}>
                                 <Button variant="outlined" size="small" onClick={() => setShowMessageHistory(true)}>
@@ -560,22 +539,13 @@ export default function Kikitan({
                     <div className="flex items-center gap-2 mb-2 px-1">
                         <MonitorIcon sx={{ fontSize: 14 }} className="opacity-50" />
                         <span className={`text-xs font-semibold tracking-widest uppercase ${config.light_mode ? "text-slate-500" : "text-slate-400"}`}>Screen Overlays</span>
+                        <span className={`text-xs ml-1 ${config.light_mode ? "text-slate-400" : "text-slate-500"}`}>— set source language to match what you speak</span>
                     </div>
                     <div className="flex gap-3">
                         {([
-                            {
-                                label: "Overlay 1",
-                                key: "screen_overlay" as const,
-                                detection: ov1Detection,
-                                translation: ov1Translation,
-                            },
-                            {
-                                label: "Overlay 2",
-                                key: "screen_overlay_2" as const,
-                                detection: ov2Detection,
-                                translation: ov2Translation,
-                            },
-                        ]).map(({ label, key, detection: ovDet, translation: ovTrans }) => {
+                            { label: "Overlay 1", key: "screen_overlay" as const, det: ov1Detection, trans: ov1Translation },
+                            { label: "Overlay 2", key: "screen_overlay_2" as const, det: ov2Detection, trans: ov2Translation },
+                        ]).map(({ label, key, det, trans }) => {
                             const ov = config[key];
                             return (
                                 <div key={key} className={`flex-1 rounded-2xl border p-4 transition-opacity ${ov.enabled ? "" : "opacity-50"} ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`}>
@@ -597,11 +567,11 @@ export default function Kikitan({
                                     <div className="flex gap-2 mb-3">
                                         <div className="flex-1 flex flex-col gap-1">
                                             <span className={`${labelCls} flex items-center gap-1`}><MicIcon sx={{ fontSize: 11 }} /> Transcription</span>
-                                            <div className={boxCls(false)}>{ovDet}</div>
+                                            <div className={boxCls(false)}>{det}</div>
                                         </div>
                                         <div className="flex-1 flex flex-col gap-1">
                                             <span className={`${labelCls} flex items-center gap-1`}><TranslateIcon sx={{ fontSize: 11 }} /> Translation</span>
-                                            <div className={boxCls(false)}>{ovTrans}</div>
+                                            <div className={boxCls(false)}>{trans}</div>
                                         </div>
                                     </div>
                                     <Select size="small" fullWidth value={ov.corner} onChange={(e) => setConfig({ ...config, [key]: { ...ov, corner: e.target.value as typeof ov.corner } })} sx={selSx} MenuProps={menuSx}>

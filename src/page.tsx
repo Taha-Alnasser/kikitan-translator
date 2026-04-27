@@ -205,8 +205,8 @@ function App() {
           <SettingsPage lang={lang} config={config} setConfig={setConfig} closeCallback={() => setSettingsVisible(false)} initialTab={settingsInitialTab} />
         </Modal>
         {!quickstartVisible && changelogsVisible &&
-          <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (changelogsVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-            <div className={`flex flex-col justify-between  w-10/12 h-5/6 outline outline-1 ${config.light_mode ? "outline-slate-400" : "outline-slate-950"} rounded bg-white`}>
+          <div className="transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute opacity-100">
+            <div className="flex flex-col justify-between w-10/12 h-5/6 outline outline-1 outline-line rounded bg-surface">
               <Changelogs light_mode={config.light_mode} lang={lang} closeCallback={() => setChangelogsVisible(false)} />
             </div>
           </div>

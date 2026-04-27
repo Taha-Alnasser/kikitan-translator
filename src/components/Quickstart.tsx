@@ -8,7 +8,7 @@ import {
 
 import Scroll from "./Scroll"
 import { localization } from "../util/localization";
-import { Box, Button, Checkbox, FormControlLabel, FormGroup, MenuItem, Select } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, FormGroup, MenuItem, Select } from "@mui/material";
 import { Lang } from "../util/constants";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -23,7 +23,7 @@ export default function QuickstartMenu({ config, setLang, lang, setConfig }: Qui
     const [quickstartPage, setQuickstartPage] = React.useState(0)
 
     return <>
-        <div className={`absolute z-10 flex flex-col justify-between w-10/12 h-5/6 outline outline-2 rounded  ${!config.light_mode ? "bg-slate-950 outline-slate-950" : "bg-white outline-white"}`}>
+        <div className="absolute z-10 flex flex-col justify-between w-10/12 h-5/6 outline outline-2 rounded bg-surface text-fg outline-line">
             <div className='relative mt-2 ml-2 mr-2 h-64'>
                 <div className={`absolute inset-0 transition-all flex justify-center ease-in-out ${quickstartPage == 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
                     <div className='absolute mt-28 flex flex-col items-center'>
@@ -31,15 +31,7 @@ export default function QuickstartMenu({ config, setLang, lang, setConfig }: Qui
 
                         <div className='mt-16 absolute flex flex-row items-center'>
                             <Translate className='mr-8 outline-2 ' />
-                            <Select sx={{
-                                color: config.light_mode ? 'black' : 'white',
-                                '& .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: config.light_mode ? 'black' : 'white',
-                                },
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: config.light_mode ? 'black' : 'white',
-                                },
-                            }} variant='outlined' className="mt-auto mr-8" value={lang} onChange={(e) => {
+                            <Select variant='outlined' className="mt-auto mr-8" value={lang} onChange={(e) => {
                                 setLang(e.target.value as Lang)
                             }}>
 
@@ -80,22 +72,7 @@ export default function QuickstartMenu({ config, setLang, lang, setConfig }: Qui
                     </div>
                 </div>
 
-                <Box sx={{
-                    width: '100%',
-                    '& .MuiSvgIcon-root': {
-                        color: config.light_mode ? 'black' : '#94A3B8'
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: config.light_mode ? 'black' : '#94A3B8',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: config.light_mode ? 'black' : '#94A3B8',
-                    },
-                    '& .MuiFormControlLabel-root.Mui-disabled .MuiFormControlLabel-label': {
-                        color: config.light_mode ? '#666666' : '#4f4f4f'
-                    }
-                }} >
-                    <div className={'absolute inset-0 transition-all space-y-2 flex flex-col items-center ease-in-out ' + (quickstartPage == 3 ? "opacity-100" : "opacity-0 pointer-events-none")}>
+                <div className={'absolute inset-0 transition-all space-y-2 flex flex-col items-center ease-in-out ' + (quickstartPage == 3 ? "opacity-100" : "opacity-0 pointer-events-none")}>
                         <div className='mt-4 mb-4'>
                             <p className='text-4xl bold text-center'>{localization.change_basic_settings[lang]}</p>
                         </div>
@@ -138,7 +115,6 @@ export default function QuickstartMenu({ config, setLang, lang, setConfig }: Qui
                             }} />} label={localization.only_send_translation[lang]} />
                         </FormGroup>
                     </div>
-                </Box>
 
                 <div className={'absolute inset-0 transition-all space-y-2 flex flex-col items-center justify-center ease-in-out ' + (quickstartPage == 4 ? "opacity-100" : "opacity-0 pointer-events-none")}>
                     <div className='mt-4 mb-4'>
@@ -171,18 +147,8 @@ export default function QuickstartMenu({ config, setLang, lang, setConfig }: Qui
                 </div>
             </div>
             <div className='mb-2 flex justify-center space-x-4'>
-                <Button sx={{
-                    '&.Mui-disabled': {
-                        color: config.light_mode ? '#666666 !important' : '#4f4f4f !important',
-                        borderColor: config.light_mode ? '#666666 !important' : '#4f4f4f !important'
-                    }
-                }} variant='contained' disabled={quickstartPage == 0} onClick={() => { setQuickstartPage(quickstartPage - 1) }}>{localization.previous[lang]}</Button>
-                {!(quickstartPage == 5) && <Button sx={{
-                    '&.Mui-disabled': {
-                        color: config.light_mode ? '#666666 !important' : '#4f4f4f !important',
-                        borderColor: config.light_mode ? '#666666 !important' : '#4f4f4f !important'
-                    }
-                }} className='ml-4' variant='contained' disabled={quickstartPage > 3} onClick={() => { setQuickstartPage(quickstartPage + 1) }}>{localization.next[lang]}</Button>}
+                <Button variant='contained' disabled={quickstartPage == 0} onClick={() => { setQuickstartPage(quickstartPage - 1) }}>{localization.previous[lang]}</Button>
+                {!(quickstartPage == 5) && <Button className='ml-4' variant='contained' disabled={quickstartPage > 3} onClick={() => { setQuickstartPage(quickstartPage + 1) }}>{localization.next[lang]}</Button>}
             </div>
         </div>
     </>

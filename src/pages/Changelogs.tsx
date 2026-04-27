@@ -24,7 +24,7 @@ type ChangelogsProps = {
     light_mode: boolean;
 }
 
-export default function Changelogs({ closeCallback, lang, light_mode }: ChangelogsProps) {
+export default function Changelogs({ closeCallback, lang }: ChangelogsProps) {
     const [changelog, setChangelog] = React.useState("")
     React.useEffect(() => {
         info("[CHANGELOG] Fetching changelogs...")
@@ -38,18 +38,7 @@ export default function Changelogs({ closeCallback, lang, light_mode }: Changelo
     }, [])
 
     return <>
-        <Box sx={{ 
-            width: '100%',
-            '& .MuiSvgIcon-root': {
-                color: light_mode ? 'black' : 'white'
-            },
-            '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: light_mode ? 'black' : 'white',
-            },
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: light_mode ? 'black' : 'white',
-            },
-        }} className={`h-screen ${light_mode ? "" : "bg-slate-950 text-white"}`}>
+        <Box className="h-screen bg-surface text-fg">
             <Box className={`flex`} sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <IconButton className="ml-2 mr-2" onClick={() => { closeCallback() }}>
                     <Close />

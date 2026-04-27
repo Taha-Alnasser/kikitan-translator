@@ -25,7 +25,6 @@ import {
     Pause as PauseIcon,
     Keyboard,
     History as HistoryIcon,
-    Close as CloseIcon,
     Mic as MicIcon,
     Translate as TranslateIcon,
     SwapHoriz as SwapHorizIcon,
@@ -46,6 +45,7 @@ import {
 } from "../util/constants";
 
 import { Config, load_config, MessageHistoryItem } from "../util/config";
+import Modal from "../components/Modal";
 import { Recognizer } from "../recognizers/recognizer";
 import { EdgeSTT } from "../recognizers/EdgeSTT";
 
@@ -383,48 +383,39 @@ export default function Kikitan({
     return (
         <>
             {/* Message History Modal */}
-            <div className={"transition-all z-20 w-full h-64 flex backdrop-blur-sm bg-transparent justify-center items-center absolute" + (showMessageHistory ? " opacity-100" : " opacity-0 pointer-events-none")}>
-                <div className={`flex flex-col w-10/12 h-96 outline outline-1 ${config.light_mode ? "outline-white" : "outline-slate-900"} rounded-xl ${config.light_mode ? "bg-white" : "bg-slate-950"} p-4 overflow-hidden`}>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className={`text-base font-bold ${config.light_mode ? "text-black" : "text-white"}`}>{localization.message_history[lang]}</h2>
-                        <IconButton onClick={() => setShowMessageHistory(false)} sx={{ color: config.light_mode ? "rgba(0,0,0,0.87)" : "#ffffff" }}><CloseIcon /></IconButton>
-                    </div>
-                    <div className="overflow-y-auto flex-grow" style={{ maxHeight: "calc(100% - 4rem)" }}>
-                        {config.message_history.items.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <span className={`text-sm italic ${config.light_mode ? "text-gray-500" : "text-gray-400"}`}>{localization.no_history[lang]}</span>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {config.message_history.items.map((item, i) => (
-                                    <div key={i} className={`p-3 rounded-lg ${config.light_mode ? "bg-gray-100" : "bg-slate-900"}`}>
-                                        <div className={`text-xs mb-1 ${config.light_mode ? "text-gray-500" : "text-gray-400"}`}>{formatTimestamp(item.timestamp)}</div>
-                                        <div className={`font-medium text-sm ${config.light_mode ? "text-black" : "text-white"}`}>{item.source}</div>
-                                        <div className={`mt-1 text-sm ${config.light_mode ? "text-gray-700" : "text-gray-300"}`}>{item.translation}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+            <Modal open={showMessageHistory} onClose={() => setShowMessageHistory(false)} size="md" title={localization.message_history[lang]} z={20}>
+                <div className="p-4 overflow-y-auto" style={{ maxHeight: "60vh" }}>
+                    {config.message_history.items.length === 0 ? (
+                        <div className="flex items-center justify-center h-20">
+                            <span className="text-sm italic" style={{ color: "var(--tk-text-muted)" }}>{localization.no_history[lang]}</span>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {config.message_history.items.map((item, i) => (
+                                <div key={i} className="p-3 rounded-lg" style={{ background: "var(--tk-surface-muted)" }}>
+                                    <div className="text-xs mb-1" style={{ color: "var(--tk-text-muted)" }}>{formatTimestamp(item.timestamp)}</div>
+                                    <div className="font-medium text-sm">{item.source}</div>
+                                    <div className="mt-1 text-sm" style={{ color: "var(--tk-text-muted)" }}>{item.translation}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            </div>
+            </Modal>
 
             {/* Text Input Modal */}
-            <div className={"transition-all z-20 w-full h-64 flex bg-transparent justify-center items-center absolute" + (textInputVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-                <div className={`flex flex-col justify-center w-7/12 h-2/6 outline outline-1 ${config.light_mode ? "outline-slate-200" : "outline-slate-800"} rounded-xl ${config.light_mode ? "bg-white" : "bg-slate-950"}`}>
-                    <div className="flex flex-row justify-center gap-2 px-4">
-                        <TextField
-                            slotProps={{ inputLabel: { style: { color: config.light_mode ? "black" : "#94A3B8" } }, htmlInput: { style: { color: config.light_mode ? "black" : "#fff" } } }}
-                            inputRef={textInputRef} placeholder={localization.type_here[lang]} className="mt-2 w-48"
-                            value={textInputValue} variant="outlined"
-                            onKeyDown={(e) => { if (e.key == "Enter") { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); } }}
-                            onChange={(e) => setTextInputValue(e.target.value)}
-                        />
-                        <Button variant="contained" onClick={() => { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); }}>{localization.send[lang]}</Button>
-                        <Button variant="contained" color="error" onClick={() => { setTextInputVisible(false); setTextInputValue(""); }}>{localization.close_menu[lang]}</Button>
-                    </div>
+            <Modal open={textInputVisible} onClose={() => { setTextInputVisible(false); setTextInputValue(""); }} size="sm" title={localization.type_here[lang]} z={20}>
+                <div className="flex flex-row justify-center gap-2 px-4 py-4">
+                    <TextField
+                        inputRef={textInputRef} placeholder={localization.type_here[lang]} className="mt-2 w-48"
+                        value={textInputValue} variant="outlined"
+                        onKeyDown={(e) => { if (e.key == "Enter") { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); } }}
+                        onChange={(e) => setTextInputValue(e.target.value)}
+                    />
+                    <Button variant="contained" onClick={() => { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); }}>{localization.send[lang]}</Button>
+                    <Button variant="contained" color="error" onClick={() => { setTextInputVisible(false); setTextInputValue(""); }}>{localization.close_menu[lang]}</Button>
                 </div>
-            </div>
+            </Modal>
 
             {/* Main layout */}
             <div id="main" className="relative z-10 flex flex-col gap-3 w-full" style={{ maxWidth: 860 }}>

@@ -45,6 +45,7 @@ import { localization } from './util/localization';
 
 import translateGT from './translators/google_translate';
 import QuickstartMenu from './components/Quickstart';
+import Modal from './components/Modal';
 function App() {
   const [quickstartVisible, setQuickstartVisible] = React.useState(true)
   const [changelogsVisible, setChangelogsVisible] = React.useState(false)
@@ -171,49 +172,39 @@ function App() {
           <QuickstartMenu config={config} setLang={setLang} lang={lang} setConfig={setConfig}></QuickstartMenu>
         </div>
 
-        <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (updateVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-          <div className={`flex flex-col justify-center w-10/12 h-5/6 outline outline-1 ${config.light_mode ? "outline-white" : "outline-slate-950"} rounded ${config.light_mode ? "bg-white" : "bg-slate-950"}`}>
-            <div className='flex flex-row justify-center'>
-              <CircularProgress></CircularProgress>
-              <p className='ml-4 text-4xl'>{localization.updating[lang]}</p>
-            </div>
+        <Modal open={updateVisible} size="md" hideClose persistent>
+          <div className="flex items-center justify-center p-6 gap-4">
+            <CircularProgress />
+            <p className="text-2xl">{localization.updating[lang]}</p>
           </div>
-        </div>
+        </Modal>
 
-        <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (donateVisible && !quickstartVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-          <div className={`flex flex-col justify-center w-6/12 h-3/6 outline outline-1 ${config.light_mode ? "outline-white" : "outline-slate-950"} rounded ${config.light_mode ? "bg-white" : "bg-slate-950"}`}>
+        <Modal open={donateVisible && !quickstartVisible} onClose={() => setDonateVisible(false)} size="md">
+          <div className="flex flex-col justify-center p-6 gap-4">
             <div className='flex flex-row justify-center'>
-              <p className='ml-4 text-md text-center'>{localization.donation_text[lang]}</p>
+              <p className='text-md text-center'>{localization.donation_text[lang]}</p>
             </div>
-            <div className='flex justify-center mt-4 gap-2'>
+            <div className='flex justify-center gap-2'>
               <Button variant="contained" color="secondary" className='w-48' onClick={() => { open("https://buymeacoffee.com/sergiomarquina") }}><Favorite className='mr-2' /><p className='text-xs'>Buy Me a Coffee</p></Button>
-              <Button sx={{
-                backgroundColor: "#fc4d50"
-              }} variant="contained" className='w-48' onClick={() => { invoke("open_url", { url: "https://booth.pm/en/items/6073050" }) }}>
-                <img src="/boothlogo.svg" width={24} className="mr-2"></img>
-                <p className="mt-0.5"><p className='text-xs'>Booth.pm</p></p>
+              <Button sx={{ backgroundColor: "#fc4d50" }} variant="contained" className='w-48' onClick={() => { invoke("open_url", { url: "https://booth.pm/en/items/6073050" }) }}>
+                <img src="/boothlogo.svg" width={24} className="mr-2" />
+                <p className='text-xs'>Booth.pm</p>
               </Button>
               <Button variant="contained" className='w-48' onClick={() => { setDonateVisible(false) }}><p className='text-xs'>{localization.close_menu[lang]}</p></Button>
             </div>
           </div>
-        </div>
+        </Modal>
 
-        <div className={'transition-all z-10 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (googleServersErrorVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-          <div className={`flex flex-col justify-center w-10/12 h-3/6 outline outline-1 ${config.light_mode ? "outline-white" : "outline-slate-950"} outline-gray-200 rounded ${config.light_mode ? "bg-white" : "bg-slate-950"}`}>
-            <div className='flex flex-row justify-center'>
-              <p className='ml-4 text-md text-center'>{localization.unable_to_access_google_servers[lang]}</p>
-            </div>
-            <div className='flex flex-row justify-center mt-4'>
-              <Button variant="contained" className='w-32' onClick={() => { setGoogleServersErrorVisible(false) }}>{localization.close_menu[lang]}</Button>
-            </div>
+        <Modal open={googleServersErrorVisible} onClose={() => setGoogleServersErrorVisible(false)} size="md" z={10}>
+          <div className="flex flex-col items-center justify-center p-6 gap-4">
+            <p className='text-md text-center'>{localization.unable_to_access_google_servers[lang]}</p>
+            <Button variant="contained" className='w-32' onClick={() => { setGoogleServersErrorVisible(false) }}>{localization.close_menu[lang]}</Button>
           </div>
-        </div>
+        </Modal>
 
-        <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (settingsVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
-          <div className={`flex flex-col justify-between  w-10/12 h-5/6 outline outline-1 ${config.light_mode ? "outline-slate-400" : "outline-slate-950"} rounded bg-white`}>
-            <SettingsPage lang={lang} config={config} setConfig={setConfig} closeCallback={() => setSettingsVisible(false)} />
-          </div>
-        </div>
+        <Modal open={settingsVisible} onClose={() => setSettingsVisible(false)} size="lg" title="Settings">
+          <SettingsPage lang={lang} config={config} setConfig={setConfig} closeCallback={() => setSettingsVisible(false)} />
+        </Modal>
         {!quickstartVisible && changelogsVisible &&
           <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (changelogsVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
             <div className={`flex flex-col justify-between  w-10/12 h-5/6 outline outline-1 ${config.light_mode ? "outline-slate-400" : "outline-slate-950"} rounded bg-white`}>

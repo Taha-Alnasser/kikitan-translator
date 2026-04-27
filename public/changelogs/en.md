@@ -1,3 +1,20 @@
+# Kikitan Translator v1.3.0
+
+**Bug Fixes:**
+* Language and mode changes now apply immediately without needing to manually restart the recognizer
+* Switching languages no longer shows stale text from the previous session
+* Overlay windows no longer display ghost text after the overlay is disabled
+* Restart button is now always visible and functional
+
+**Improvements:**
+* Settings panel reorganized into tabbed sections (Audio, Translation, VRChat, Overlays, History, Advanced, About) for easier navigation
+* UI now adapts cleanly to both light and dark mode using a unified color token system
+* Screen overlays correctly clear their content when disabled
+
+**Make sure to join the Discord from the button on the main page if you want to submit bug reports!!**
+
+---
+
 # Hotfix - Kikitan Translator v1.2.5
 
 This version only fixes the muting bug that wasn't fixed before the update, so I'll be keeping the same changelogs

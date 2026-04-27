@@ -58,6 +58,7 @@ function App() {
 
   const [loaded, setLoaded] = React.useState(false)
   const [vrchatRunning, setVrchatRunning] = React.useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = React.useState<"audio" | "translation" | "vrchat" | "overlays" | "history" | "advanced" | "about">("audio")
 
   React.useEffect(() => { applyTokensToRoot(config.light_mode); }, [config.light_mode]);
 
@@ -201,7 +202,7 @@ function App() {
         </Modal>
 
         <Modal open={settingsVisible} onClose={() => setSettingsVisible(false)} size="lg" title="Settings">
-          <SettingsPage lang={lang} config={config} setConfig={setConfig} closeCallback={() => setSettingsVisible(false)} />
+          <SettingsPage lang={lang} config={config} setConfig={setConfig} closeCallback={() => setSettingsVisible(false)} initialTab={settingsInitialTab} />
         </Modal>
         {!quickstartVisible && changelogsVisible &&
           <div className={'transition-all z-30 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute' + (changelogsVisible ? " opacity-100" : " opacity-0 pointer-events-none")}>
@@ -257,7 +258,7 @@ function App() {
             </Toolbar>
           </AppBar>
           <div className='flex flex-1 items-center align-middle flex-col mt-8'>
-            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible} vrchatRunning={vrchatRunning} openSettings={(_tab) => { setSettingsVisible(true); }}></Kikitan>}
+            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible} vrchatRunning={vrchatRunning} openSettings={(tab) => { if (tab) setSettingsInitialTab(tab as typeof settingsInitialTab); setSettingsVisible(true); }}></Kikitan>}
           </div>
         </div>
       </div>

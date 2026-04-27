@@ -233,10 +233,7 @@ function App() {
                     color: 'white'
                   }
                 }} variant='outlined' className="ml-4 mr-2" value={config.mode} onChange={(e) => {
-                  setConfig({ ...config, mode: parseInt(e.target.value.toString()) })
-                  setTimeout(() => { setLoaded(false) }, 100)
-
-                  setTimeout(() => { window.location.reload() }, 300)
+                  setConfig({ ...config, mode: parseInt(e.target.value.toString()) });
                 }}>
                   <MenuItem value={0}>{localization.translation[lang]}</MenuItem>
                   <MenuItem value={1}>{localization.stt_only[lang]}</MenuItem>

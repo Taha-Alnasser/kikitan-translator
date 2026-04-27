@@ -14,7 +14,7 @@ import {
     Slide
 } from "@mui/material";
 
-import { error, info, warn } from "@tauri-apps/plugin-log";
+import { info } from "@tauri-apps/plugin-log";
 
 import {
     X as XIcon,
@@ -46,8 +46,7 @@ import {
 
 import { Config, load_config, MessageHistoryItem } from "../util/config";
 import Modal from "../components/Modal";
-import { Recognizer } from "../recognizers/recognizer";
-import { EdgeSTT } from "../recognizers/EdgeSTT";
+import * as recognizers from "../util/recognizers";
 
 import { localization } from "../util/localization";
 import {
@@ -57,8 +56,6 @@ import {
     send_user_translation
 } from "../util/data_out";
 import { send_notification_text } from "../util/overlay";
-import { VAD } from "../recognizers/VAD";
-import { WebSpeech } from "../recognizers/WebSpeech";
 
 type KikitanProps = {
     config: Config;
@@ -68,15 +65,8 @@ type KikitanProps = {
     vrchatRunning: boolean;
 };
 
-// Three independent recognizers sharing one ref-counted audio capture stream.
-// audiocapture.ts ensures stopping one does not kill the others.
-let sr: Recognizer | null = null;
-let sr1: Recognizer | null = null;
-let sr2: Recognizer | null = null;
-let desktopSR: Recognizer | null = null;
 let detectionQueue: string[][] = [];
 let lock = false;
-let restartTimeout: NodeJS.Timeout | null = null;
 
 // Dedup — EdgeSTT sometimes fires speech.phrase twice for the same utterance
 let lastQueuedText = "";
@@ -112,7 +102,6 @@ export default function Kikitan({
 
     const [sourceLanguage, setSourceLanguage] = React.useState(config.source_language);
     const [targetLanguage, setTargetLanguage] = React.useState(config.target_language);
-    const [languageUpdate, setLanguageUpdate] = React.useState(false);
 
     const [showMessageHistory, setShowMessageHistory] = React.useState(false);
     const [textInputVisible, setTextInputVisible] = React.useState(false);
@@ -129,127 +118,99 @@ export default function Kikitan({
         setNotification({ open: true, message: msg, severity: sev });
     };
 
-    const enableDesktopCapture = () => {
-        desktopSR?.stop();
-        switch (config.translator_settings.recognition_service) {
-            case 0:
-                desktopSR = new EdgeSTT(targetLanguage, sourceLanguage, true, false, null, showNotification, setConfig);
-                break;
-            case 1:
-                desktopSR = new VAD(targetLanguage, sourceLanguage, true, false, null, showNotification, setConfig);
-                break;
-            case 2:
-                showNotification(localization.cannot_use_webspeech_for_desktop_translation[lang], "warning");
-                return;
-            default:
-                return;
-        }
-        desktopSR.onResult(async (result: string[], isFinal: boolean) => {
-            if (config.data_out.enable_desktop_data) {
-                send_desktop_recognition(result[0], isFinal);
-                if (isFinal) send_desktop_translation(result[1]);
-            }
-            if (isFinal) setDesktopResult(result[1]);
-        });
-        desktopSR.start();
-    };
-
-    const restartSR = () => {
-        sr?.stop();
-        info(`[SR] Restarting: ${sourceLanguage} → ${targetLanguage}`);
+    const restartChatbox = () => {
         if ((config.translator_settings.translation_service == 2 || config.translator_settings.recognition_service == 1) && config.groq.api_key.length == 0) {
             showNotification(localization.no_api_key_configured_for_groq[lang], "warning");
         }
-        switch (config.translator_settings.recognition_service) {
-            case 0: sr = new EdgeSTT(sourceLanguage, targetLanguage, false, config.mode == 1, setSRLoading, showNotification, setConfig); break;
-            case 1: sr = new VAD(sourceLanguage, targetLanguage, false, config.mode == 1, setSRLoading, showNotification, setConfig); break;
-            case 2: sr = new WebSpeech(sourceLanguage, targetLanguage, config.mode == 1, setSRLoading, showNotification, setConfig); break;
-            default: error(`[SR] Unknown recognizer: ${config.translator_settings.recognition_service}`); return;
-        }
-        sr.onResult((result: string[], isFinal: boolean) => {
-            setDetecting(!isFinal);
-            setResult(result);
+        setDetection(""); setTranslated(""); setResult([]);
+        recognizers.restart("chatbox", config.translator_settings.recognition_service, {
+            source: sourceLanguage,
+            target: targetLanguage,
+            sttOnly: config.mode === 1,
+            setSRLoading,
+            showNotification,
+            setConfig,
+            onResult: (result, isFinal) => {
+                setDetecting(!isFinal);
+                setResult(result);
+            },
         });
-        sr?.start();
     };
 
-    const restartDesktopSR = () => {
-        const cfg = load_config();
-        if (cfg.translator_settings.desktop_translation) enableDesktopCapture();
-        else { desktopSR?.stop(); desktopSR = null; }
+    const restartDesktop = () => {
+        if (!config.translator_settings.desktop_translation) {
+            recognizers.stop("desktop");
+            setDesktopResult("");
+            return;
+        }
+        setDesktopResult("");
+        recognizers.restart("desktop", config.translator_settings.recognition_service, {
+            source: sourceLanguage,
+            target: targetLanguage,
+            sttOnly: false,
+            setSRLoading: null,
+            showNotification,
+            setConfig,
+            onResult: async (result, isFinal) => {
+                if (configRef.current.data_out.enable_desktop_data) {
+                    send_desktop_recognition(result[0], isFinal);
+                    if (isFinal) send_desktop_translation(result[1]);
+                }
+                if (isFinal) setDesktopResult(result[1]);
+            },
+        });
     };
 
-    // Overlay 1 — independent recognizer with its own language pair.
-    // Uses configRef.current (always fresh) instead of load_config() to
-    // avoid the localStorage race where the React state update hasn't been
-    // persisted to storage yet when this fires.
-    const restartOverlay1SR = () => {
-        sr1?.stop();
-        sr1 = null;
+    const restartOverlay = (n: 1 | 2) => {
+        const role = (n === 1 ? "overlay1" : "overlay2") as recognizers.RecognizerRole;
         const cfg = configRef.current;
-        if (!cfg.screen_overlay?.enabled) return;
-        const ov = cfg.screen_overlay;
-        info(`[SR1] Starting: ${ov.source_language} → ${ov.target_language}`);
-        switch (cfg.translator_settings.recognition_service) {
-            case 0: sr1 = new EdgeSTT(ov.source_language, ov.target_language, false, false, null, showNotification, setConfig); break;
-            case 1: sr1 = new VAD(ov.source_language, ov.target_language, false, false, null, showNotification, setConfig); break;
-            case 2: sr1 = new WebSpeech(ov.source_language, ov.target_language, false, null, showNotification, setConfig); break;
-            default: return;
+        const ov = n === 1 ? cfg.screen_overlay : cfg.screen_overlay_2;
+        const channel = n === 1 ? "screen-overlay" : "screen-overlay-2";
+        if (!ov?.enabled) {
+            recognizers.stop(role);
+            if (n === 1) { setOv1Detection(""); setOv1Translation(""); }
+            else        { setOv2Detection(""); setOv2Translation(""); }
+            emitTo(channel, `${channel}:clear`);
+            return;
         }
-        sr1.onResult((result: string[], isFinal: boolean) => {
-            setOv1Detection(result[0]);
-            if (isFinal && configRef.current.screen_overlay?.enabled) {
-                setOv1Translation(result[1]);
-                emitTo("screen-overlay", "screen-overlay:line", {
-                    transcription: result[0],
-                    translation: result[1],
-                });
-            }
+        if (n === 1) { setOv1Detection(""); setOv1Translation(""); }
+        else        { setOv2Detection(""); setOv2Translation(""); }
+        emitTo(channel, `${channel}:clear`);
+        recognizers.restart(role, cfg.translator_settings.recognition_service, {
+            source: ov.source_language,
+            target: ov.target_language,
+            sttOnly: false,
+            setSRLoading: null,
+            showNotification,
+            setConfig,
+            onResult: (result, isFinal) => {
+                if (n === 1) setOv1Detection(result[0]); else setOv2Detection(result[0]);
+                if (isFinal) {
+                    if (n === 1) setOv1Translation(result[1]); else setOv2Translation(result[1]);
+                    emitTo(channel, `${channel}:line`, { transcription: result[0], translation: result[1] });
+                }
+            },
         });
-        sr1.start();
-    };
-
-    // Overlay 2 — independent recognizer, same pattern as overlay 1
-    const restartOverlay2SR = () => {
-        sr2?.stop();
-        sr2 = null;
-        const cfg = configRef.current;
-        if (!cfg.screen_overlay_2?.enabled) return;
-        const ov = cfg.screen_overlay_2;
-        info(`[SR2] Starting: ${ov.source_language} → ${ov.target_language}`);
-        switch (cfg.translator_settings.recognition_service) {
-            case 0: sr2 = new EdgeSTT(ov.source_language, ov.target_language, false, false, null, showNotification, setConfig); break;
-            case 1: sr2 = new VAD(ov.source_language, ov.target_language, false, false, null, showNotification, setConfig); break;
-            case 2: sr2 = new WebSpeech(ov.source_language, ov.target_language, false, null, showNotification, setConfig); break;
-            default: return;
-        }
-        sr2.onResult((result: string[], isFinal: boolean) => {
-            setOv2Detection(result[0]);
-            if (isFinal && configRef.current.screen_overlay_2?.enabled) {
-                setOv2Translation(result[1]);
-                emitTo("screen-overlay-2", "screen-overlay-2:line", {
-                    transcription: result[0],
-                    translation: result[1],
-                });
-            }
-        });
-        sr2.start();
     };
 
     React.useEffect(() => {
         send_notification_text(desktopResult, (config.source_language == "ja" || config.source_language == "ko" || config.source_language == "zh"));
     }, [desktopResult]);
 
+    // Restart chatbox + desktop on any language / mode / service change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     React.useEffect(() => {
-        if (!languageUpdate) return;
-        if (sr) {
-            sr?.stop();
-            desktopSR?.stop();
-            if (restartTimeout) clearTimeout(restartTimeout);
-            restartTimeout = setTimeout(() => { restartSR(); restartDesktopSR(); }, 500);
-        }
-        setLanguageUpdate(false);
-    }, [languageUpdate]);
+        if (!srStatus) return;
+        restartChatbox();
+        restartDesktop();
+    }, [
+        sourceLanguage,
+        targetLanguage,
+        config.mode,
+        config.translator_settings.recognition_service,
+        config.translator_settings.translation_service,
+        config.translator_settings.desktop_translation,
+    ]);
 
     React.useEffect(() => {
         if (vrcMuted && !startedSpeaking && config.vrchat_settings.disable_kikitan_when_muted) return;
@@ -278,9 +239,8 @@ export default function Kikitan({
 
     React.useEffect(() => {
         info(`[SR] status=${srStatus}`);
-        if (sr == null) { warn("[SR] SR is null, ignoring"); return; }
-        if (srStatus) { sr.start(); desktopSR?.start(); sr1?.start(); sr2?.start(); }
-        else          { sr.stop();  desktopSR?.stop();  sr1?.stop();  sr2?.stop();  }
+        if (srStatus) recognizers.resumeAll();
+        else recognizers.pauseAll();
     }, [srStatus]);
 
     React.useEffect(() => {
@@ -322,48 +282,40 @@ export default function Kikitan({
     React.useEffect(() => {
         listen<boolean>("vrchat-mute", (e) => setVRCMuted(e.payload));
         listen<boolean>("disable-kikitan-mic", (e) => setSRStatus(!e.payload));
-        listen<boolean>("disable-kikitan-desktop", (e) => { if (e.payload) desktopSR?.stop(); else desktopSR?.start(); });
+        listen<boolean>("disable-kikitan-desktop", (e) => { if (e.payload) recognizers.stop("desktop"); else restartDesktop(); });
         listen<boolean>("disable-kikitan-chatbox", (e) => setConfig({ ...config, vrchat_settings: { ...config.vrchat_settings, enable_chatbox: !e.payload } }));
 
-        if (sr == null) {
+        invoke("get_microphone_list").then((data) => {
+            const d = data as { name: string, sample_rate: number }[];
+            if (d.filter(v => v.name == load_config().microphone).length == 0) {
+                showNotification(localization.microphone_updated[lang], "warning");
+                setConfig({ ...config, microphone: d[0].name });
+            }
+            setMicrophones(d);
+        });
+        setInterval(() => {
             invoke("get_microphone_list").then((data) => {
                 const d = data as { name: string, sample_rate: number }[];
                 if (d.filter(v => v.name == load_config().microphone).length == 0) {
                     showNotification(localization.microphone_updated[lang], "warning");
                     setConfig({ ...config, microphone: d[0].name });
-                    restartSR();
                 }
                 setMicrophones(d);
             });
-            setInterval(() => {
-                invoke("get_microphone_list").then((data) => {
-                    const d = data as { name: string, sample_rate: number }[];
-                    if (d.filter(v => v.name == load_config().microphone).length == 0) {
-                        showNotification(localization.microphone_updated[lang], "warning");
-                        setConfig({ ...config, microphone: d[0].name });
-                        restartSR();
-                    }
-                    setMicrophones(d);
-                });
-            }, 1000);
-        }
+        }, 1000);
     }, []);
 
     React.useEffect(() => {
-        if (settingsVisible == false && srStatus) {
-            restartSR();
-            restartDesktopSR();
-            restartOverlay1SR();
-            restartOverlay2SR();
+        if (settingsVisible === false && srStatus) {
+            restartChatbox();
+            restartDesktop();
+            restartOverlay(1);
+            restartOverlay(2);
         }
     }, [settingsVisible]);
 
-    // Restart overlay recognizers when their settings change.
-    // configRef.current is always up-to-date so these pick up the new language instantly.
-    React.useEffect(() => { restartOverlay1SR(); }, [config.screen_overlay?.enabled]);
-    React.useEffect(() => { if (sr1) restartOverlay1SR(); }, [config.screen_overlay?.source_language, config.screen_overlay?.target_language]);
-    React.useEffect(() => { restartOverlay2SR(); }, [config.screen_overlay_2?.enabled]);
-    React.useEffect(() => { if (sr2) restartOverlay2SR(); }, [config.screen_overlay_2?.source_language, config.screen_overlay_2?.target_language]);
+    React.useEffect(() => { restartOverlay(1); }, [config.screen_overlay?.enabled, config.screen_overlay?.source_language, config.screen_overlay?.target_language]);
+    React.useEffect(() => { restartOverlay(2); }, [config.screen_overlay_2?.enabled, config.screen_overlay_2?.source_language, config.screen_overlay_2?.target_language]);
 
     const formatTimestamp = (ts: number) => new Date(ts).toLocaleTimeString();
 
@@ -409,10 +361,10 @@ export default function Kikitan({
                     <TextField
                         inputRef={textInputRef} placeholder={localization.type_here[lang]} className="mt-2 w-48"
                         value={textInputValue} variant="outlined"
-                        onKeyDown={(e) => { if (e.key == "Enter") { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); } }}
+                        onKeyDown={(e) => { if (e.key == "Enter") { recognizers.triggerChatbox(textInputValue); setTextInputVisible(false); setTextInputValue(""); } }}
                         onChange={(e) => setTextInputValue(e.target.value)}
                     />
-                    <Button variant="contained" onClick={() => { sr?.manual_trigger(textInputValue); setTextInputVisible(false); setTextInputValue(""); }}>{localization.send[lang]}</Button>
+                    <Button variant="contained" onClick={() => { recognizers.triggerChatbox(textInputValue); setTextInputVisible(false); setTextInputValue(""); }}>{localization.send[lang]}</Button>
                     <Button variant="contained" color="error" onClick={() => { setTextInputVisible(false); setTextInputValue(""); }}>{localization.close_menu[lang]}</Button>
                 </div>
             </Modal>
@@ -432,15 +384,25 @@ export default function Kikitan({
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                         <Select size="small" value={sourceLanguage} sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => { setSourceLanguage(e.target.value); setLanguageUpdate(true); setConfig({ ...config, source_language: e.target.value }); }}>
+                            onChange={(e) => {
+                                setSourceLanguage(e.target.value);
+                                setConfig({ ...config, source_language: e.target.value });
+                            }}>
                             {langSource.map((el) => <MenuItem key={el.code} value={el.code} sx={miSx}>{el.name[lang]}</MenuItem>)}
                         </Select>
-                        <IconButton size="small" disabled={languageUpdate}
-                            onClick={() => { const t = sourceLanguage; const s = targetLanguage; setTargetLanguage(t); setSourceLanguage(s); setLanguageUpdate(true); setConfig({ ...config, source_language: s, target_language: t }); }}>
+                        <IconButton size="small"
+                            onClick={() => {
+                                const t = sourceLanguage; const s = targetLanguage;
+                                setTargetLanguage(t); setSourceLanguage(s);
+                                setConfig({ ...config, source_language: s, target_language: t });
+                            }}>
                             <SwapHorizIcon fontSize="small" />
                         </IconButton>
                         <Select size="small" value={targetLanguage} sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => { setTargetLanguage(e.target.value); setLanguageUpdate(true); setConfig({ ...config, target_language: e.target.value }); }}>
+                            onChange={(e) => {
+                                setTargetLanguage(e.target.value);
+                                setConfig({ ...config, target_language: e.target.value });
+                            }}>
                             {langTo.map((el) => <MenuItem key={el.code} value={el.code} sx={miSx}>{el.name[lang]}</MenuItem>)}
                         </Select>
                     </div>
@@ -467,7 +429,7 @@ export default function Kikitan({
                             {srStatus ? !srLoading ? <PauseIcon sx={{ fontSize: 16 }} /> : <CircularProgress color="inherit" size={14} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
                         </Button>
                         <Tooltip title="Restart recognizer — use after changing language">
-                            <Button variant="outlined" size="small" onClick={() => { restartSR(); restartOverlay1SR(); restartOverlay2SR(); }}>
+                            <Button variant="outlined" size="small" onClick={() => { restartChatbox(); restartOverlay(1); restartOverlay(2); restartDesktop(); }}>
                                 <RestartAltIcon sx={{ fontSize: 16 }} />
                             </Button>
                         </Tooltip>
@@ -540,7 +502,7 @@ export default function Kikitan({
                     <div className="flex items-center gap-2">
                         <KeyboardVoiceIcon fontSize="small" className="opacity-50" />
                         <Select size="small" value={config.microphone} className="w-52" sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => { setConfig({ ...config, microphone: e.target.value as string }); setTimeout(() => restartSR(), 250); }}>
+                            onChange={(e) => { setConfig({ ...config, microphone: e.target.value as string }); setTimeout(() => restartChatbox(), 250); }}>
                             {microphones.map((el) => (
                                 <MenuItem key={el.name} value={el.name} sx={miSx}>
                                     {(el.name.includes("(") && el.name.includes(")")) ? el.name.match(/\(([^)]+)\)/)?.[1] : el.name}

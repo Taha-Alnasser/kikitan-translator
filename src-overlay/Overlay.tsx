@@ -124,6 +124,16 @@ export default function Overlay() {
         return () => { unlisten.then((fn) => fn()); };
     }, [label, config.max_lines, config.fade_timeout]);
 
+    useEffect(() => {
+        if (!label) return;
+        const unlisten = listen<void>(`${label}:clear`, () => {
+            if (fadeTimer.current) clearTimeout(fadeTimer.current);
+            setLines([]);
+            setVisible(false);
+        });
+        return () => { unlisten.then((fn) => fn()); };
+    }, [label]);
+
     const hasContent = lines.length > 0 && visible;
 
     return (

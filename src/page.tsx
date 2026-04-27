@@ -13,6 +13,10 @@ import {
   CircularProgress
 } from '@mui/material';
 
+import { ThemeProvider } from '@mui/material/styles';
+import { makeMuiTheme } from './style/theme';
+import { applyTokensToRoot } from './style/tokens';
+
 import {
   Settings,
   Translate,
@@ -55,6 +59,8 @@ function App() {
 
   const [loaded, setLoaded] = React.useState(false)
   const [vrchatRunning, setVrchatRunning] = React.useState(false)
+
+  React.useEffect(() => { applyTokensToRoot(config.light_mode); }, [config.light_mode]);
 
   React.useEffect(() => {
     if (loaded) update_config(config)
@@ -159,7 +165,7 @@ function App() {
   }, [config.screen_overlay_2]);
 
   return (
-    <>
+    <ThemeProvider theme={makeMuiTheme(config.light_mode)}>
       <div className={`relative transition-all duration-500 ${!loaded ? "opacity-0 pointer-events-none" : "opacity-100"} ${!config.light_mode ? "bg-slate-950 text-white" : ""}`}>
         <div className={`transition-all z-20 w-full h-screen flex backdrop-blur-sm bg-transparent justify-center items-center absolute` + (quickstartVisible && lang != null ? " opacity-100" : " opacity-0 pointer-events-none")}>
           <QuickstartMenu config={config} setLang={setLang} lang={lang} setConfig={setConfig}></QuickstartMenu>
@@ -280,7 +286,7 @@ function App() {
           </div>
         </div>
       </div>
-    </>
+    </ThemeProvider>
   )
 }
 

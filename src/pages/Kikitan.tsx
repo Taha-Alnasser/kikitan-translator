@@ -1,14 +1,8 @@
 import * as React from "react";
 
 import {
-    Select,
-    MenuItem,
     Button,
     TextField,
-    IconButton,
-    Switch,
-    Tooltip,
-    CircularProgress,
     Snackbar,
     Alert,
     Slide
@@ -17,35 +11,23 @@ import {
 import { info } from "@tauri-apps/plugin-log";
 
 import {
-    X as XIcon,
-    GitHub as GitHubIcon,
-    Favorite as FavoriteIcon,
-    KeyboardVoice as KeyboardVoiceIcon,
-    PlayArrow as PlayArrowIcon,
-    Pause as PauseIcon,
-    Keyboard,
-    History as HistoryIcon,
-    Mic as MicIcon,
-    Translate as TranslateIcon,
-    SwapHoriz as SwapHorizIcon,
-    SportsEsports as SportsEsportsIcon,
     Monitor as MonitorIcon,
-    RestartAlt as RestartAltIcon,
 } from "@mui/icons-material";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emitTo } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-shell";
 
 import {
     calculateMinWaitTime,
     Lang,
-    langSource,
-    langTo,
 } from "../util/constants";
 
 import { Config, load_config, MessageHistoryItem } from "../util/config";
 import Modal from "../components/Modal";
+import StatusStrip from "../components/StatusStrip";
+import VRChatChatboxCard from "../components/VRChatChatboxCard";
+import OverlayCard from "../components/OverlayCard";
+import SocialFooter from "../components/SocialFooter";
 import * as recognizers from "../util/recognizers";
 
 import { localization } from "../util/localization";
@@ -63,6 +45,7 @@ type KikitanProps = {
     lang: Lang;
     settingsVisible: boolean;
     vrchatRunning: boolean;
+    openSettings?: (tab?: string) => void;
 };
 
 let detectionQueue: string[][] = [];
@@ -77,6 +60,8 @@ export default function Kikitan({
     setConfig,
     lang,
     settingsVisible,
+    vrchatRunning,
+    openSettings,
 }: KikitanProps) {
     const [detecting, setDetecting] = React.useState(false);
     const [srStatus, setSRStatus] = React.useState(true);
@@ -93,8 +78,6 @@ export default function Kikitan({
     const [ov1Translation, setOv1Translation] = React.useState("");
     const [ov2Detection, setOv2Detection] = React.useState("");
     const [ov2Translation, setOv2Translation] = React.useState("");
-
-    const [microphones, setMicrophones] = React.useState<{ name: string, sample_rate: number }[]>([]);
 
     const [triggerUpdate, setTriggerUpdate] = React.useState(false);
     const configRef = React.useRef(config);
@@ -291,7 +274,6 @@ export default function Kikitan({
                 showNotification(localization.microphone_updated[lang], "warning");
                 setConfig({ ...config, microphone: d[0].name });
             }
-            setMicrophones(d);
         });
         setInterval(() => {
             invoke("get_microphone_list").then((data) => {
@@ -300,7 +282,6 @@ export default function Kikitan({
                     showNotification(localization.microphone_updated[lang], "warning");
                     setConfig({ ...config, microphone: d[0].name });
                 }
-                setMicrophones(d);
             });
         }, 1000);
     }, []);
@@ -318,19 +299,6 @@ export default function Kikitan({
     React.useEffect(() => { restartOverlay(2); }, [config.screen_overlay_2?.enabled, config.screen_overlay_2?.source_language, config.screen_overlay_2?.target_language]);
 
     const formatTimestamp = (ts: number) => new Date(ts).toLocaleTimeString();
-
-    const selSx = {
-        color: config.light_mode ? "black" : "white",
-        "& .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "#cbd5e1" : "#475569" },
-        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: config.light_mode ? "#94a3b8" : "#64748b" },
-        "& .MuiSvgIcon-root": { color: config.light_mode ? "black" : "#94A3B8" },
-    };
-    const menuSx = { sx: { "& .MuiPaper-root": { backgroundColor: config.light_mode ? "white" : "#020617" } } };
-    const miSx = { color: config.light_mode ? "black" : "white" };
-    const cardCls = `rounded-2xl border p-4 ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`;
-    const lbl = `text-xs font-medium ${config.light_mode ? "text-slate-500" : "text-slate-400"}`;
-    const box = (dim: boolean) =>
-        `rounded-lg border px-3 py-2 h-12 text-sm font-medium overflow-hidden transition-all ${dim ? "italic opacity-60" : ""} ${config.light_mode ? "border-slate-200 text-slate-800" : "border-slate-700 text-slate-200"}`;
 
     return (
         <>
@@ -372,151 +340,62 @@ export default function Kikitan({
             {/* Main layout */}
             <div id="main" className="relative z-10 flex flex-col gap-3 w-full" style={{ maxWidth: 860 }}>
 
+                {/* ── Status strip ── */}
+                <StatusStrip
+                    running={srStatus}
+                    loading={srLoading}
+                    paused={!srStatus}
+                    source={sourceLanguage}
+                    target={targetLanguage}
+                    vrchatRunning={vrchatRunning}
+                    mic={config.microphone}
+                    mode={config.mode}
+                    onModeChange={(m) => setConfig({ ...config, mode: m })}
+                    onPauseToggle={() => {
+                        invoke("send_disable_mic", { data: !srStatus, address: config.vrchat_settings.osc_address, port: `${config.vrchat_settings.osc_port}` });
+                        setSRStatus(!srStatus);
+                    }}
+                    onRestart={() => { restartChatbox(); restartOverlay(1); restartOverlay(2); restartDesktop(); }}
+                    onMicClick={() => openSettings?.("audio")}
+                    modeLabels={{ translation: localization.translation[lang], stt: localization.stt_only[lang] }}
+                />
+
                 {/* ── VRChat Chatbox ── */}
-                <div className={cardCls}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <SportsEsportsIcon fontSize="small" className="opacity-60" />
-                            <span className="font-bold text-sm">VRChat Chatbox</span>
-                        </div>
-                        <Switch size="small" checked={config.vrchat_settings.enable_chatbox}
-                            onChange={(e) => setConfig({ ...config, vrchat_settings: { ...config.vrchat_settings, enable_chatbox: e.target.checked } })} />
-                    </div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <Select size="small" value={sourceLanguage} sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => {
-                                setSourceLanguage(e.target.value);
-                                setConfig({ ...config, source_language: e.target.value });
-                            }}>
-                            {langSource.map((el) => <MenuItem key={el.code} value={el.code} sx={miSx}>{el.name[lang]}</MenuItem>)}
-                        </Select>
-                        <IconButton size="small"
-                            onClick={() => {
-                                const t = sourceLanguage; const s = targetLanguage;
-                                setTargetLanguage(t); setSourceLanguage(s);
-                                setConfig({ ...config, source_language: s, target_language: t });
-                            }}>
-                            <SwapHorizIcon fontSize="small" />
-                        </IconButton>
-                        <Select size="small" value={targetLanguage} sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => {
-                                setTargetLanguage(e.target.value);
-                                setConfig({ ...config, target_language: e.target.value });
-                            }}>
-                            {langTo.map((el) => <MenuItem key={el.code} value={el.code} sx={miSx}>{el.name[lang]}</MenuItem>)}
-                        </Select>
-                    </div>
-                    <div className="flex gap-3 mb-3">
-                        <div className="flex-1 flex flex-col gap-1">
-                            <span className={`${lbl} flex items-center gap-1`}><MicIcon sx={{ fontSize: 11 }} /> Transcription</span>
-                            <div className={box(detecting)}>{detection}</div>
-                        </div>
-                        <div className="flex-1 flex flex-col gap-1">
-                            <span className={`${lbl} flex items-center gap-1`}><TranslateIcon sx={{ fontSize: 11 }} /> Translation</span>
-                            <div className={box(false)}>{translated}</div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outlined" size="small" disabled={!srStatus}
-                            onClick={() => { if (!textInputVisible) { textInputRef.current?.focus(); textInputRef.current?.select(); } setTextInputVisible(!textInputVisible); }}>
-                            {localization.text[lang]} <Keyboard className="ml-1" sx={{ fontSize: 16 }} />
-                        </Button>
-                        <Button variant="outlined" size="small"
-                            color={srStatus ? !srLoading ? "error" : "inherit" : "success"} disabled={srLoading}
-                            sx={{ '&.Mui-disabled': { borderColor: config.light_mode ? 'rgba(0,0,0,0.4)' : 'rgba(148,163,184,0.5)', color: config.light_mode ? 'rgba(0,0,0,0.4)' : 'rgba(148,163,184,0.5)' } }}
-                            onClick={() => { invoke("send_disable_mic", { data: !srStatus, address: config.vrchat_settings.osc_address, port: `${config.vrchat_settings.osc_port}` }); setSRStatus(!srStatus); }}>
-                            {!srStatus ? localization.start[lang] : !srLoading ? localization.stop[lang] : ""}
-                            {srStatus ? !srLoading ? <PauseIcon sx={{ fontSize: 16 }} /> : <CircularProgress color="inherit" size={14} /> : <PlayArrowIcon sx={{ fontSize: 16 }} />}
-                        </Button>
-                        <Tooltip title="Restart recognizer — use after changing language">
-                            <Button variant="outlined" size="small" onClick={() => { restartChatbox(); restartOverlay(1); restartOverlay(2); restartDesktop(); }}>
-                                <RestartAltIcon sx={{ fontSize: 16 }} />
-                            </Button>
-                        </Tooltip>
-                        {config.message_history.enabled && (
-                            <Tooltip title={localization.message_history[lang]}>
-                                <Button variant="outlined" size="small" onClick={() => setShowMessageHistory(true)}>
-                                    <HistoryIcon sx={{ fontSize: 16 }} />
-                                </Button>
-                            </Tooltip>
-                        )}
-                    </div>
-                </div>
+                <VRChatChatboxCard
+                    config={config}
+                    setConfig={setConfig}
+                    lang={lang}
+                    sourceLanguage={sourceLanguage}
+                    setSourceLanguage={setSourceLanguage}
+                    targetLanguage={targetLanguage}
+                    setTargetLanguage={setTargetLanguage}
+                    detection={detection}
+                    translated={translated}
+                    detecting={detecting}
+                    onOpenTextInput={() => {
+                        if (!textInputVisible) { textInputRef.current?.focus(); textInputRef.current?.select(); }
+                        setTextInputVisible(!textInputVisible);
+                    }}
+                    textInputDisabled={!srStatus}
+                    onShowHistory={() => setShowMessageHistory(true)}
+                />
 
                 {/* ── Screen Overlays ── */}
                 <div>
                     <div className="flex items-center gap-2 mb-2 px-1">
                         <MonitorIcon sx={{ fontSize: 14 }} className="opacity-50" />
-                        <span className={`text-xs font-semibold tracking-widest uppercase ${config.light_mode ? "text-slate-500" : "text-slate-400"}`}>Screen Overlays</span>
+                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--tk-text-muted)" }}>Screen Overlays</span>
                     </div>
                     <div className="flex gap-3">
-                        {([
-                            { label: "Overlay 1", key: "screen_overlay" as const, det: ov1Detection, trans: ov1Translation },
-                            { label: "Overlay 2", key: "screen_overlay_2" as const, det: ov2Detection, trans: ov2Translation },
-                        ]).map(({ label, key, det, trans }) => {
-                            const ov = config[key];
-                            return (
-                                <div key={key} className={`flex-1 rounded-2xl border p-4 transition-opacity ${ov.enabled ? "" : "opacity-50"} ${config.light_mode ? "border-slate-200 bg-white shadow-sm" : "border-slate-700 bg-slate-900"}`}>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="font-semibold text-sm">{label}</span>
-                                        <Switch size="small" checked={ov.enabled} onChange={(e) => setConfig({ ...config, [key]: { ...ov, enabled: e.target.checked } })} />
-                                    </div>
-                                    <div className="flex items-center gap-1 mb-3">
-                                        <Select size="small" value={ov.source_language} sx={selSx} MenuProps={menuSx}
-                                            onChange={(e) => setConfig({ ...config, [key]: { ...ov, source_language: e.target.value } })}>
-                                            {langSource.map((l) => <MenuItem key={l.code} value={l.code} sx={miSx}>{l.name[lang]}</MenuItem>)}
-                                        </Select>
-                                        <IconButton size="small" onClick={() => setConfig({ ...config, [key]: { ...ov, source_language: ov.target_language, target_language: ov.source_language } })}>
-                                            <SwapHorizIcon fontSize="small" />
-                                        </IconButton>
-                                        <Select size="small" value={ov.target_language} sx={selSx} MenuProps={menuSx}
-                                            onChange={(e) => setConfig({ ...config, [key]: { ...ov, target_language: e.target.value } })}>
-                                            {langTo.map((l) => <MenuItem key={l.code} value={l.code} sx={miSx}>{l.name[lang]}</MenuItem>)}
-                                        </Select>
-                                    </div>
-                                    <div className="flex gap-2 mb-3">
-                                        <div className="flex-1 flex flex-col gap-1">
-                                            <span className={`${lbl} flex items-center gap-1`}><MicIcon sx={{ fontSize: 11 }} /> Transcription</span>
-                                            <div className={box(false)}>{det}</div>
-                                        </div>
-                                        <div className="flex-1 flex flex-col gap-1">
-                                            <span className={`${lbl} flex items-center gap-1`}><TranslateIcon sx={{ fontSize: 11 }} /> Translation</span>
-                                            <div className={box(false)}>{trans}</div>
-                                        </div>
-                                    </div>
-                                    <Select size="small" fullWidth value={ov.corner} sx={selSx} MenuProps={menuSx}
-                                        onChange={(e) => setConfig({ ...config, [key]: { ...ov, corner: e.target.value as typeof ov.corner } })}>
-                                        <MenuItem value="top-left" sx={miSx}>↖ Top Left</MenuItem>
-                                        <MenuItem value="top-right" sx={miSx}>↗ Top Right</MenuItem>
-                                        <MenuItem value="bottom-left" sx={miSx}>↙ Bottom Left</MenuItem>
-                                        <MenuItem value="bottom-right" sx={miSx}>↘ Bottom Right</MenuItem>
-                                    </Select>
-                                </div>
-                            );
-                        })}
+                        <OverlayCard label="Overlay 1" config={config} setConfig={setConfig} lang={lang}
+                            ovKey="screen_overlay" detection={ov1Detection} translation={ov1Translation} />
+                        <OverlayCard label="Overlay 2" config={config} setConfig={setConfig} lang={lang}
+                            ovKey="screen_overlay_2" detection={ov2Detection} translation={ov2Translation} />
                     </div>
                 </div>
 
-                {/* ── Mic + Social ── */}
-                <div className="flex items-center justify-between pb-1">
-                    <div className="flex items-center gap-2">
-                        <KeyboardVoiceIcon fontSize="small" className="opacity-50" />
-                        <Select size="small" value={config.microphone} className="w-52" sx={selSx} MenuProps={menuSx}
-                            onChange={(e) => { setConfig({ ...config, microphone: e.target.value as string }); setTimeout(() => restartChatbox(), 250); }}>
-                            {microphones.map((el) => (
-                                <MenuItem key={el.name} value={el.name} sx={miSx}>
-                                    {(el.name.includes("(") && el.name.includes(")")) ? el.name.match(/\(([^)]+)\)/)?.[1] : el.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="contained" size="small" onClick={() => open("https://twitter.com/marquina_osu")}><XIcon fontSize="small" /></Button>
-                        <Button variant="contained" size="small" onClick={() => open("https://buymeacoffee.com/sergiomarquina")}><FavoriteIcon fontSize="small" /></Button>
-                        <Button variant="contained" size="small" onClick={() => open("https://github.com/YusufOzmen01/kikitan-translator")}><GitHubIcon fontSize="small" /></Button>
-                        <Button variant="contained" size="small" onClick={() => open("https://discord.gg/jpkYCgpBGV")}><img src="/discordlogo.webp" className="invert" width={18} /></Button>
-                    </div>
-                </div>
+                {/* ── Social Footer ── */}
+                <SocialFooter />
             </div>
 
             <Snackbar open={notification.open} autoHideDuration={5000} onClose={() => setNotification(prev => ({ ...prev, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} TransitionComponent={Slide}>

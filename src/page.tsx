@@ -6,8 +6,6 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  Select,
-  MenuItem,
   Button,
   IconButton,
   CircularProgress
@@ -227,17 +225,6 @@ function App() {
                 </p>
               </Typography>
               <div className='flex'>
-                <Select sx={{
-                  color: 'white',
-                  '& .MuiSvgIcon-root': {
-                    color: 'white'
-                  }
-                }} variant='outlined' className="ml-4 mr-2" value={config.mode} onChange={(e) => {
-                  setConfig({ ...config, mode: parseInt(e.target.value.toString()) });
-                }}>
-                  <MenuItem value={0}>{localization.translation[lang]}</MenuItem>
-                  <MenuItem value={1}>{localization.stt_only[lang]}</MenuItem>
-                </Select>
                 <IconButton sx={{
                   color: 'white',
                   '& .MuiSvgIcon-root': {
@@ -270,7 +257,7 @@ function App() {
             </Toolbar>
           </AppBar>
           <div className='flex flex-1 items-center align-middle flex-col mt-8'>
-            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible} vrchatRunning={vrchatRunning}></Kikitan>}
+            {loaded && !quickstartVisible && <Kikitan lang={lang} config={config} setConfig={setConfig} settingsVisible={settingsVisible} vrchatRunning={vrchatRunning} openSettings={(_tab) => { setSettingsVisible(true); }}></Kikitan>}
           </div>
         </div>
       </div>
